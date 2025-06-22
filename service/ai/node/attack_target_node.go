@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/combat"
+	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/world"
 )

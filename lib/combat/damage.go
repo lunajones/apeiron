@@ -1,3 +1,7 @@
+package combat
+
+type DamageType string
+
 const (
     Cutting      DamageType = "Cutting"
     Blunt        DamageType = "Blunt"
