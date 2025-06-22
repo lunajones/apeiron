@@ -26,9 +26,18 @@ func Init() {
 	log.Println("[ZoneService] Inicializando zonas...")
 
 	zone1 := &Zone{ID: "zone_map1"}
-	zone1.SpawnCreature(creature.Soldier)
+
+	c1 := creature.NewChineseSoldier()
+	c1.Position = creature.Position{X: 0, Y: 0, Z: 0}
+
+	c2 := creature.NewChineseSoldier()
+	c2.Position = creature.Position{X: 2, Y: 0, Z: 0}
+
+	zone1.Creatures = append(zone1.Creatures, c1, c2)
+
 	zones = append(zones, zone1)
 }
+
 
 func (z *Zone) SpawnCreature(cType creature.CreatureType) {
 	c := &creature.Creature{
@@ -89,4 +98,15 @@ func convertToAIPlayers(players []*Player) []ai.Player {
 		})
 	}
 	return aiPlayers
+}
+
+func FindCreatureByID(id string) *creature.Creature {
+	for _, z := range zones {
+		for _, c := range z.Creatures {
+			if c.ID == id {
+				return c
+			}
+		}
+	}
+	return nil
 }
