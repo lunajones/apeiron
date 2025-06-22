@@ -286,22 +286,36 @@ func (c *Creature) TickEffects() {
 	var remainingEffects []ActiveEffect
 
 	for _, eff := range c.ActiveEffects {
-		if now-eff.StartTime >= int64(eff.Duration) {
-			log.Printf("[Creature %s] efeito %s expirou", c.ID, eff.Type)
+		// Verificar expiração
+		if now-eff.StartTime >= eff.Duration {
+			log.Printf("[Effect] Creature %s: efeito %s expirou.", c.ID, eff.Type)
 			continue
 		}
 
-		if eff.Type.IsDOT() {
-			damage := 10
-			c.HP -= damage
-			log.Printf("[Creature %s] sofreu %d de dano de %s. HP atual: %d", c.ID, damage, eff.Type, c.HP)
+		// Processamento de efeito contínuo (DOT, Regen, etc)
+		if now-eff.LastTickTime >= eff.TickInterval {
+			switch eff.Type {
+			case EffectPoison, EffectBurn:
+				c.HP -= eff.Power
+				log.Printf("[Effect] Creature %s sofreu %d de %s. HP atual: %d", c.ID, eff.Power, eff.Type, c.HP)
+				if c.HP <= 0 && c.IsAlive {
+					c.IsAlive = false
+					c.TimeOfDeath = now
+					c.CurrentAction = ActionDie
+					log.Printf("[Effect] Creature %s morreu por efeito %s", c.ID, eff.Type)
+				}
 
-			if c.HP <= 0 && c.IsAlive {
-				c.IsAlive = false
-				c.TimeOfDeath = now
-				c.CurrentAction = ActionDie
-				log.Printf("[Creature %s] morreu por DOT %s", c.ID, eff.Type)
+			case EffectRegen:
+				c.HP += eff.Power
+				log.Printf("[Effect] Creature %s curou %d por %s. HP atual: %d", c.ID, eff.Power, eff.Type, c.HP)
 			}
+
+			eff.LastTickTime = now
+		}
+
+		// Controle de CC (Stun, Slow etc)
+		if eff.Type == EffectStun {
+			// Exemplo: podemos impedir ações dentro do ProcessAI
 		}
 
 		remainingEffects = append(remainingEffects, eff)
