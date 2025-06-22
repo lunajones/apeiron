@@ -5,6 +5,8 @@ type CreatureSubtype string
 type DamageType string
 type CreatureAction string
 
+type CreatureLevel string
+
 const (
     Mob              CreatureType = "Mob"
     Elite            CreatureType = "Elite"
@@ -12,6 +14,8 @@ const (
     RegionBoss       CreatureType = "RegionBoss"
     WorldBoss        CreatureType = "WorldBoss"
 )
+
+type CreatureType string
 
 const (
     Zombie           CreatureSubtype = "Zombie"
@@ -26,6 +30,8 @@ const (
 	Slave            CreatureSubtype = "Slave"
     Soldier          CreatureSubtype = "Soldier"
 )
+
+type CreatureAction string
 
 const (
     ActionIdle       CreatureAction = "Idle"
@@ -43,3 +49,13 @@ const (
     ActionTeamSkill3 CreatureAction = "TeamSkill3"
     ActionDie        CreatureAction = "Die"
 )
+
+type CreatureState string
+
+const (
+	StateIdle        CreatureState = "Idle"
+	StateAlert       CreatureState = "Alert"
+	StateAttack      CreatureState = "Attack"
+	StateDead        CreatureState = "Dead"
+)
+
