@@ -8,9 +8,9 @@ import (
 	"github.com/lunajones/apeiron/service/world"
 )
 
-type AttackVulnerableNode struct{}
+type AttackIfVulnerableNode struct{}
 
-func (n *AttackVulnerableNode) Tick(c *creature.Creature) core.BehaviorStatus {
+func (n *AttackIfVulnerableNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}

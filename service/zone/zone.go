@@ -6,14 +6,10 @@ import (
 
 	"github.com/lunajones/apeiron/service/ai"
 	"github.com/lunajones/apeiron/service/ai/old_china/mob"
+	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/world"
 )
-
-type Player struct {
-	ID       string
-	Position creature.Position
-}
 
 func Init() {
 	log.Println("[ZoneService] Inicializando zonas...")
@@ -21,10 +17,10 @@ func Init() {
 	zone1 := &world.Zone{ID: "zone_map1"}
 
 	c1 := creature.NewChineseSoldier()
-	c1.Position = creature.Position{X: 0, Y: 0, Z: 0}
+	c1.Position = position.Position{X: 0, Y: 0, Z: 0}
 
 	c2 := creature.NewChineseSoldier()
-	c2.Position = creature.Position{X: 2, Y: 0, Z: 0}
+	c2.Position = position.Position{X: 2, Y: 0, Z: 0}
 
 	zone1.Creatures = append(zone1.Creatures, c1, c2)
 
@@ -59,7 +55,7 @@ func (z *world.Zone) SpawnCreature(cType creature.CreatureType, players []*Playe
 		ID:      generateUniqueCreatureID(),
 		Type:    cType,
 		IsAlive: true,
-		Position: creature.Position{
+		Position: position.Position{
 			X: 0,
 			Y: 0,
 			Z: 0,
@@ -81,10 +77,10 @@ func (z *world.Zone) SpawnCreature(cType creature.CreatureType, players []*Playe
 	log.Printf("[ZoneService] Criada criatura %s do tipo %s na zona %s", c.ID, cType, z.ID)
 }
 
-func convertToAIPlayers(players []*Player) []ai.Player {
-	var aiPlayers []ai.Player
+func convertToAIPlayers(players []*Player) []player.Player {
+	var aiPlayers []player.Player
 	for _, p := range players {
-		aiPlayers = append(aiPlayers, ai.Player{
+		aiPlayers = append(aiPlayers, player.Player{
 			ID:       p.ID,
 			Position: p.Position,
 		})

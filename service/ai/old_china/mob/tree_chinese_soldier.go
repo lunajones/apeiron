@@ -21,8 +21,8 @@ func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creatu
 			&node.AttackTargetNode{
 				SkillName: "SoldierSkill1",
 			},
-			&node.AttackIfEnemyVulnerableNode{},
-			&node.RandomIdleBehaviorNode{},
+			&node.AttackIfVulnerableNode{},
+			&node.RandomIdleNode{},
 		},
 	}
 }
