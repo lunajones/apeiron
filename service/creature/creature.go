@@ -37,9 +37,31 @@ type Creature struct {
 	ActiveEffects []ActiveEffect
 
 	// Posição e spawn
-	SpawnPoint Position
-	Position   Position
+	SpawnPoint  Position
+	Position    Position
 	SpawnRadius float64
+
+	// AI Targeting
+	TargetCreatureID string
+	TargetPlayerID   string
+
+	// Perception / Range
+	DetectionRadius float64
+	AttackRange     float64
+
+	// Skill Cooldowns
+	SkillCooldowns map[CreatureAction]time.Time
+
+	// Aggro / Hate
+	AggroTable map[string]float64
+
+	// Movement and Attack speed
+	MoveSpeed   float64
+	AttackSpeed float64
+
+	// Faction / Hostility
+	Faction   string
+	IsHostile bool
 }
 
 var creatures []*Creature
@@ -80,8 +102,15 @@ func exampleSpawn() *Creature {
 		RespawnTimeSec:  30,
 		SpawnPoint:      Position{X: 0, Y: 0, Z: 0},
 		SpawnRadius:     5.0,
+		DetectionRadius: 10.0,
+		AttackRange:     2.5,
+		SkillCooldowns:  make(map[CreatureAction]time.Time),
+		AggroTable:      make(map[string]float64),
+		MoveSpeed:       3.5,
+		AttackSpeed:     1.2,
+		Faction:         "Monsters",
+		IsHostile:       true,
 	}
-
 	c.Position = c.GenerateSpawnPosition()
 	return c
 }
@@ -227,7 +256,9 @@ func TickAll() {
 
 func DebugPrintCreatures() {
 	for _, c := range creatures {
-		fmt.Printf("Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f)\n",
-			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z)
+		fmt.Printf(
+			"Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f)\n",
+			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z,
+		)
 	}
 }
