@@ -1,11 +1,17 @@
 package ai
 
-import "log"
+import (
+	"github.com/lunajones/apeiron/service/creature"
+)
 
 func Init() {
-    log.Println("AI service initialized")
+	InitBehaviorRules()
 }
 
-func Tick() {
-    // comportamento de NPCs
+func ProcessAI(c *creature.Creature) {
+	if !c.IsAlive || c.IsPostureBroken || c.BehaviorTree == nil {
+		return
+	}
+
+	c.BehaviorTree.Tick(c)
 }

@@ -45,7 +45,14 @@ type Creature struct {
 	TargetCreatureID string
 	TargetPlayerID   string
 
-	// Perception / Range
+	// Perception
+	FieldOfViewDegrees float64
+	VisionRange        float64
+	HearingRange       float64
+	IsBlind            bool
+	IsDeaf             bool
+
+	// Perception/Combat - Range
 	DetectionRadius float64
 	AttackRange     float64
 
@@ -64,12 +71,15 @@ type Creature struct {
 	IsHostile bool
 
 	// Posture / Stagger system
-	MaxPosture             float64
-	CurrentPosture         float64
-	PostureRegenRate       float64
-	IsPostureBroken        bool
-	TimePostureBroken      int64
+	MaxPosture              float64
+	CurrentPosture          float64
+	PostureRegenRate        float64
+	IsPostureBroken         bool
+	TimePostureBroken       int64
 	PostureBreakDurationSec int
+
+	BehaviorTree ai.BehaviorNode
+
 }
 
 var creatures []*Creature
@@ -110,6 +120,11 @@ func exampleSpawn() *Creature {
 		RespawnTimeSec:          30,
 		SpawnPoint:              Position{X: 0, Y: 0, Z: 0},
 		SpawnRadius:             5.0,
+		FieldOfViewDegrees:      120,
+		VisionRange:             15,
+		HearingRange:            10,
+		IsBlind:                 false,
+		IsDeaf:                  false,
 		DetectionRadius:         10.0,
 		AttackRange:             2.5,
 		SkillCooldowns:          make(map[CreatureAction]time.Time),
@@ -124,6 +139,7 @@ func exampleSpawn() *Creature {
 		PostureBreakDurationSec: 5,
 	}
 	c.Position = c.GenerateSpawnPosition()
+	c.BehaviorTree = mob.BuildChineseSoldierBT(creatures)
 	return c
 }
 
@@ -200,7 +216,7 @@ func (c *Creature) ApplyPostureDamage(amount float64) {
 		c.CurrentPosture = 0
 		c.IsPostureBroken = true
 		c.TimePostureBroken = time.Now().Unix()
-		c.ChangeAIState(AIStateStaggered) // Adicione esse estado no type.go
+		c.ChangeAIState(AIStateStaggered) // Certifique-se de ter esse estado no type.go
 		log.Printf("[Creature %s] Posture quebrada! Entrando em stagger.", c.ID)
 	}
 }
@@ -227,7 +243,7 @@ func (c *Creature) ChangeAIState(newState AIState) {
 		c.IsAlive = false
 		c.TimeOfDeath = time.Now().Unix()
 	case AIStateStaggered:
-		// Pode adicionar lógica futura aqui (ex: tocar animação de queda)
+		// Lógica para stagger
 	}
 }
 
