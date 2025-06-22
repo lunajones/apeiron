@@ -1,6 +1,4 @@
-package combat
-
-import "time"
+package creature
 
 type EffectType string
 

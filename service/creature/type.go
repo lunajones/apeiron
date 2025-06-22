@@ -37,6 +37,8 @@ const (
     ActionSkill1     CreatureAction = "Skill1"
     ActionSkill2     CreatureAction = "Skill2"
     ActionSkill3     CreatureAction = "Skill3"
+    ActionSkill4     CreatureAction = "Skill4"
+    ActionSkill5     CreatureAction = "Skill5"
     ActionCombo1     CreatureAction = "Combo1"
     ActionCombo2     CreatureAction = "Combo2"
     ActionCombo3     CreatureAction = "Combo3"
@@ -44,19 +46,23 @@ const (
     ActionTeamSkill2 CreatureAction = "TeamSkill2"
     ActionTeamSkill3 CreatureAction = "TeamSkill3"
     ActionDie        CreatureAction = "Die"
+    ActionAttack     CreatureAction = "Attack"
 )
 
 type AIState string
 
 const (
-	AIStateIdle        AIState = "Idle"
-	AIStatePatrolling  AIState = "Patrolling"
-	AIStateChasing     AIState = "Chasing"
-	AIStateFleeing     AIState = "Fleeing"
-	AIStateReturning   AIState = "ReturningHome"
-	AIStateStaggered   AIState = "Staggered"
-	AIStateAmbushing   AIState = "Ambushing"
-	AIStateSubStealth  AIState = "SubStealth"
-	AIStateStealth     AIState = "Stealth"
+	AIStateIdle          AIState = "Idle"
+	AIStatePatrolling    AIState = "Patrolling"
+	AIStateChasing       AIState = "Chasing"
+	AIStateFleeing       AIState = "Fleeing"
+	AIStateReturning     AIState = "ReturningHome"
+	AIStateStaggered     AIState = "Staggered"
+	AIStateAmbushing     AIState = "Ambushing"
+	AIStateSubStealth    AIState = "SubStealth"
+	AIStateStealth       AIState = "Stealth"
+    AIStateAlert         AIState = "Alert"
+	AIStateAttack        AIState = "Attack"
+	AIStateDead          AIState = "Dead"
+	AIStatePostureBroken AIState = "PostureBroken"
 )
-
