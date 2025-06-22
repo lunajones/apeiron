@@ -1,9 +1,8 @@
-package ai
+package node
 
 import (
 	"log"
 	"math/rand"
-
 	"github.com/lunajones/apeiron/service/creature"
 )
 

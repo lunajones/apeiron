@@ -1,4 +1,4 @@
-package ai
+package node
 
 import "github.com/lunajones/apeiron/service/creature"
 

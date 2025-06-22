@@ -1,25 +1,25 @@
 package mob
 
 import (
-	"github.com/lunajones/apeiron/service/ai"
+	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-func BuildChineseSoldierBT(players []ai.Player, creatures []*creature.Creature) ai.BehaviorNode {
-	return &ai.SelectorNode{
-		Children: []ai.BehaviorNode{
-			&ai.FleeIfLowHPNode{},
-			&ai.DetectPlayerNode{Players: players},
-			&ai.DetectOtherCreatureNode{Creatures: creatures},
-			&ai.UseGroundSkillNode{
+func BuildChineseSoldierBT(players []node.Player, creatures []*creature.Creature) node.BehaviorNode {
+	return &node.SelectorNode{
+		Children: []node.BehaviorNode{
+			&node.FleeIfLowHPNode{},
+			&node.DetectOtherCreatureNode{},
+			&node.AttackTargetNode{SkillName: "SoldierSkill1"},
+			&node.UseGroundSkillNode{
 				SkillName: "SoldierGroundSlam",
 				Players:   players,
 			},
-			&ai.AttackTargetNode{
+			&node.AttackTargetNode{
 				SkillName: "SoldierSkill1",
 			},
-			&ai.AttackIfEnemyVulnerableNode{},
-			&ai.RandomIdleBehaviorNode{},
+			&node.AttackIfEnemyVulnerableNode{},
+			&node.RandomIdleBehaviorNode{},
 		},
 	}
 }

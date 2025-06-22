@@ -1,8 +1,7 @@
-package ai
+package node
 
 import (
 	"time"
-
 	"github.com/lunajones/apeiron/service/creature"
 )
 
