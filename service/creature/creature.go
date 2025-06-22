@@ -62,6 +62,14 @@ type Creature struct {
 	// Faction / Hostility
 	Faction   string
 	IsHostile bool
+
+	// Posture / Stagger system
+	MaxPosture             float64
+	CurrentPosture         float64
+	PostureRegenRate       float64
+	IsPostureBroken        bool
+	TimePostureBroken      int64
+	PostureBreakDurationSec int
 }
 
 var creatures []*Creature
@@ -94,22 +102,26 @@ func exampleSpawn() *Creature {
 			ActionCombo3,
 			ActionDie,
 		},
-		CurrentAction:   ActionIdle,
-		AIState:         AIStateIdle,
-		LastStateChange: time.Now(),
-		DynamicCombos:   make(map[CreatureAction][]CreatureAction),
-		IsAlive:         true,
-		RespawnTimeSec:  30,
-		SpawnPoint:      Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:     5.0,
-		DetectionRadius: 10.0,
-		AttackRange:     2.5,
-		SkillCooldowns:  make(map[CreatureAction]time.Time),
-		AggroTable:      make(map[string]float64),
-		MoveSpeed:       3.5,
-		AttackSpeed:     1.2,
-		Faction:         "Monsters",
-		IsHostile:       true,
+		CurrentAction:           ActionIdle,
+		AIState:                 AIStateIdle,
+		LastStateChange:         time.Now(),
+		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
+		IsAlive:                 true,
+		RespawnTimeSec:          30,
+		SpawnPoint:              Position{X: 0, Y: 0, Z: 0},
+		SpawnRadius:             5.0,
+		DetectionRadius:         10.0,
+		AttackRange:             2.5,
+		SkillCooldowns:          make(map[CreatureAction]time.Time),
+		AggroTable:              make(map[string]float64),
+		MoveSpeed:               3.5,
+		AttackSpeed:             1.2,
+		Faction:                 "Monsters",
+		IsHostile:               true,
+		MaxPosture:              100,
+		CurrentPosture:          100,
+		PostureRegenRate:        1.5,
+		PostureBreakDurationSec: 5,
 	}
 	c.Position = c.GenerateSpawnPosition()
 	return c
@@ -133,12 +145,13 @@ func (c *Creature) GenerateSpawnPosition() Position {
 }
 
 func IsTerrainWalkable(pos Position) bool {
-	// TODO: Integrar com o TerrainService para validação real
+	// TODO: Integrar com TerrainService real
 	return true
 }
 
 func (c *Creature) Tick() {
 	c.TickEffects()
+	c.TickPosture()
 
 	switch c.AIState {
 	case AIStateIdle:
@@ -158,6 +171,37 @@ func (c *Creature) Tick() {
 
 	case AIStateDead:
 		// Nada a fazer
+	}
+}
+
+func (c *Creature) TickPosture() {
+	if c.IsPostureBroken {
+		if time.Now().Unix()-c.TimePostureBroken >= int64(c.PostureBreakDurationSec) {
+			c.IsPostureBroken = false
+			c.CurrentPosture = c.MaxPosture
+			c.ChangeAIState(AIStateIdle)
+			log.Printf("[Creature %s] Posture recuperada.", c.ID)
+		}
+	} else if c.CurrentPosture < c.MaxPosture {
+		c.CurrentPosture += c.PostureRegenRate
+		if c.CurrentPosture > c.MaxPosture {
+			c.CurrentPosture = c.MaxPosture
+		}
+	}
+}
+
+func (c *Creature) ApplyPostureDamage(amount float64) {
+	if c.IsPostureBroken || !c.IsAlive {
+		return
+	}
+
+	c.CurrentPosture -= amount
+	if c.CurrentPosture <= 0 {
+		c.CurrentPosture = 0
+		c.IsPostureBroken = true
+		c.TimePostureBroken = time.Now().Unix()
+		c.ChangeAIState(AIStateStaggered) // Adicione esse estado no type.go
+		log.Printf("[Creature %s] Posture quebrada! Entrando em stagger.", c.ID)
 	}
 }
 
@@ -182,6 +226,8 @@ func (c *Creature) ChangeAIState(newState AIState) {
 		c.SetAction(ActionDie)
 		c.IsAlive = false
 		c.TimeOfDeath = time.Now().Unix()
+	case AIStateStaggered:
+		// Pode adicionar lógica futura aqui (ex: tocar animação de queda)
 	}
 }
 
@@ -257,8 +303,8 @@ func TickAll() {
 func DebugPrintCreatures() {
 	for _, c := range creatures {
 		fmt.Printf(
-			"Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f)\n",
-			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z,
+			"Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f), Posture: %.1f/%.1f\n",
+			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z, c.CurrentPosture, c.MaxPosture,
 		)
 	}
 }
