@@ -8,13 +8,10 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
-)
+	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/lib/position"
 
-type Position struct {
-	X float64
-	Y float64
-	Z float64
-}
+)
 
 type Creature struct {
 	ID              string
@@ -26,6 +23,7 @@ type Creature struct {
 	CurrentAction   CreatureAction
 	AIState         AIState
 	LastStateChange time.Time
+    LastAttackedTime time.Time
 	DynamicCombos   map[CreatureAction][]CreatureAction
 
 	// Atributos base
@@ -53,8 +51,8 @@ type Creature struct {
 	ActiveEffects []ActiveEffect
 
 	// Posição e spawn
-	SpawnPoint  Position
-	Position    Position
+	SpawnPoint  position.Position
+	Position    position.Position
 	SpawnRadius float64
 
 	// AI Targeting
@@ -137,7 +135,7 @@ func exampleSpawn() *Creature {
 		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
 		IsAlive:                 true,
 		RespawnTimeSec:          30,
-		SpawnPoint:              Position{X: 0, Y: 0, Z: 0},
+		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
 		SpawnRadius:             5.0,
 		FieldOfViewDegrees:      120,
 		VisionRange:             15,
@@ -173,11 +171,11 @@ func exampleSpawn() *Creature {
 	return c
 }
 
-func (c *Creature) GenerateSpawnPosition() Position {
+func (c *Creature) GenerateSpawnPosition() position.Position {
 	for attempts := 0; attempts < 10; attempts++ {
 		offsetX := (rand.Float64()*2 - 1) * c.SpawnRadius
 		offsetZ := (rand.Float64()*2 - 1) * c.SpawnRadius
-		newPos := Position{
+		newPos := position.Position{
 			X: c.SpawnPoint.X + offsetX,
 			Y: c.SpawnPoint.Y,
 			Z: c.SpawnPoint.Z + offsetZ,
@@ -190,7 +188,7 @@ func (c *Creature) GenerateSpawnPosition() Position {
 	return c.SpawnPoint
 }
 
-func IsTerrainWalkable(pos Position) bool {
+func IsTerrainWalkable(pos position.Position) bool {
 	// TODO: Integrar com TerrainService real
 	return true
 }
@@ -367,4 +365,42 @@ func DebugPrintCreatures() {
 			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z, c.CurrentPosture, c.MaxPosture,
 		)
 	}
+}
+
+func (c *Creature) WasRecentlyAttacked() bool {
+	return time.Since(c.LastAttackedTime).Seconds() < 10 // Exemplo básico
+}
+
+// --- Função FindByID ---
+func FindByID(creatures []*Creature, id string) *Creature {
+	for _, c := range creatures {
+		if c.ID == id {
+			return c
+		}
+	}
+	return nil
+}
+
+// --- Função CanSeeOtherCreatures ---
+func CanSeeOtherCreatures(c *Creature, creatures []*Creature) bool {
+	// Exemplo simples só para compilar
+	return len(creatures) > 0
+}
+
+// --- Função CanHearOtherCreatures ---
+func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
+	// Exemplo simples só para compilar
+	return len(creatures) > 0
+}
+
+// --- Função CanSeePlayer ---
+func CanSeePlayer(c *Creature, players []player.Player) bool {
+	// Exemplo simples só para compilar
+	return len(players) > 0
+}
+
+// --- Função CanHearPlayer ---
+func CanHearPlayer(c *Creature, players []player.Player) bool {
+	// Exemplo simples só para compilar
+	return len(players) > 0
 }

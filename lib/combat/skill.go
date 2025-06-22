@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/lib/position"
 )
 
 type Skill struct {
 	Name            string
-	Action          string
+	Action          creature.CreatureAction
 	SkillType       string  // "Physical", "Magic", etc
 	Multiplier      float64
 	Range           float64
@@ -27,6 +28,6 @@ type SkillExecution struct {
 	SkillName  string
 	CasterID   string
 	TargetID   string
-	TargetPos  creature.Position
+	TargetPos  position.Position
 	ExecuteAt  time.Time
 }

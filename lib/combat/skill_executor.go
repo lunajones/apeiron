@@ -4,12 +4,12 @@ import (
 	"log"
 	"math"
 	"time"
-
+	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos creature.Position, skillName string, creatures []*creature.Creature, players []player.Player) {
+func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillName string, creatures []*creature.Creature, players []player.Player) {
 	skillData, exists := SkillRegistry[skillName]
 	if !exists {
 		log.Printf("[SkillExecutor] Skill %s não encontrada", skillName)
@@ -65,7 +65,7 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 	}
 }
 
-func ApplyAOEDamage(attacker *creature.Creature, targetPos creature.Position, skillData Skill, creatures []*creature.Creature, players []player.Player) {
+func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, skillData Skill, creatures []*creature.Creature, players []player.Player) {
 	for _, c := range creatures {
 		if !c.IsAlive {
 			continue
@@ -82,7 +82,7 @@ func ApplyAOEDamage(attacker *creature.Creature, targetPos creature.Position, sk
 	}
 }
 
-func SimulateProjectile(attacker *creature.Creature, target *creature.Creature, targetPos creature.Position, skillData Skill) {
+func SimulateProjectile(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillData Skill) {
 	travelTime := Distance(attacker.Position, targetPos) / skillData.ProjectileSpeed
 	time.AfterFunc(time.Duration(travelTime*1000)*time.Millisecond, func() {
 		ApplyDirectDamage(attacker, target, skillData)
@@ -90,7 +90,7 @@ func SimulateProjectile(attacker *creature.Creature, target *creature.Creature, 
 	})
 }
 
-func Distance(a, b creature.Position) float64 {
+func Distance(a, b position.Position) float64 {
 	dx := a.X - b.X
 	dy := a.Y - b.Y
 	dz := a.Z - b.Z

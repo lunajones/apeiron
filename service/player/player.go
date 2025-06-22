@@ -1,9 +1,8 @@
 package player
 
-import "github.com/lunajones/apeiron/service/creature"
+import "github.com/lunajones/apeiron/lib/position"
 
 type Player struct {
 	ID       string
-	Position creature.Position
-	// No futuro: HP, MP, Atributos, Inventory, etc
+	Position position.Position
 }
