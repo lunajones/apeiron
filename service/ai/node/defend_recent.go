@@ -1,17 +1,17 @@
 package node
 
 import (
-	"time"
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-type DefendIfRecentlyDamagedNode struct{}
+type DefendRecentNode struct{}
 
-func (d *DefendIfRecentlyDamagedNode) Tick(c *creature.Creature) BehaviorStatus {
-	if time.Now().Unix()-c.TimeOfDeath < 5 {
+func (n *DefendRecentNode) Tick(c *creature.Creature) core.BehaviorStatus {
+	if c.WasRecentlyAttacked() {
 		c.SetAction(creature.ActionBlock)
-		c.ChangeAIState(creature.AIStateIdle)
-		return StatusSuccess
+		c.ChangeAIState(creature.AIStateDefend)
+		return core.StatusSuccess
 	}
-	return StatusFailure
+	return core.StatusFailure
 }

@@ -1,15 +1,29 @@
 package node
 
-import "github.com/lunajones/apeiron/service/creature"
+import (
+	"log"
 
-type AttackIfEnemyVulnerableNode struct{}
+	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/creature"
+)
 
-func (a *AttackIfEnemyVulnerableNode) Tick(c *creature.Creature) BehaviorStatus {
-	// TODO: Substituir por lógica real de detecção de vulnerabilidade
-	if c.TargetPlayerID != "" {
-		c.SetAction(creature.ActionAttack)
-		c.ChangeAIState(creature.AIStateIdle)
-		return StatusSuccess
+type AttackVulnerableNode struct{}
+
+func (n *AttackVulnerableNode) Tick(c *creature.Creature) core.BehaviorStatus {
+	if c.TargetCreatureID == "" {
+		return core.StatusFailure
 	}
-	return StatusFailure
+
+	target := creature.FindByID(c.TargetCreatureID)
+	if target == nil || !target.IsAlive {
+		return core.StatusFailure
+	}
+
+	if target.IsPostureBroken {
+		c.SetAction(creature.ActionSkill3) // Exemplo: skill mais pesada
+		log.Printf("[AI] Creature %s atacando alvo vulnerável %s", c.ID, target.ID)
+		return core.StatusSuccess
+	}
+
+	return core.StatusFailure
 }

@@ -1,4 +1,4 @@
-package nodes
+package node
 
 import (
 	"github.com/lunajones/apeiron/service/ai/core"

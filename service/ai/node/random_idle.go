@@ -1,21 +1,23 @@
 package node
 
 import (
-	"log"
 	"math/rand"
+
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-type RandomIdleBehaviorNode struct{}
+type RandomIdleNode struct{}
 
-func (r *RandomIdleBehaviorNode) Tick(c *creature.Creature) BehaviorStatus {
-	choice := rand.Float32()
-	if choice < 0.5 {
-		log.Printf("[AI] Creature %s decidiu andar em Idle.", c.ID)
-		c.SetAction(creature.ActionWalk)
-	} else {
-		log.Printf("[AI] Creature %s continua parado.", c.ID)
-		c.SetAction(creature.ActionIdle)
+func (n *RandomIdleNode) Tick(c *creature.Creature) core.BehaviorStatus {
+	actions := []creature.CreatureAction{
+		creature.ActionIdle,
+		creature.ActionWalk,
+		creature.ActionJump,
 	}
-	return StatusSuccess
+
+	chosen := actions[rand.Intn(len(actions))]
+	c.SetAction(chosen)
+
+	return core.StatusSuccess
 }

@@ -1,4 +1,4 @@
-package nodes
+package node
 
 import (
 	"log"
@@ -24,7 +24,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature) core.BehaviorStatus {
 		return core.StatusFailure
 	}
 
-	distance := Distance(c.Position, target.Position)
+	distance := distance(c.Position, target.Position)
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
 		log.Printf("[AI] Skill %s não encontrada.", n.SkillName)
@@ -40,7 +40,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	return core.StatusSuccess
 }
 
-func Distance(a, b creature.Position) float64 {
+func distance(a, b creature.Position) float64 {
 	dx := a.X - b.X
 	dy := a.Y - b.Y
 	dz := a.Z - b.Z

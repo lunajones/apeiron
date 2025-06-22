@@ -1,14 +1,20 @@
 package node
 
-import "github.com/lunajones/apeiron/service/creature"
+import (
+	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/creature"
+)
 
-type FleeIfLowHPNode struct{}
+type FleeLowHPNode struct{}
 
-func (f *FleeIfLowHPNode) Tick(c *creature.Creature) BehaviorStatus {
-	if c.HP < 30 {
+func (n *FleeLowHPNode) Tick(c *creature.Creature) core.BehaviorStatus {
+	hpPercent := float64(c.HP) / float64(c.MaxHP)
+
+	if hpPercent < 0.2 {
 		c.SetAction(creature.ActionRun)
-		c.ChangeAIState(creature.AIStateIdle)
-		return StatusSuccess
+		c.ChangeAIState(creature.AIStateFlee)
+		return core.StatusSuccess
 	}
-	return StatusFailure
+
+	return core.StatusFailure
 }
