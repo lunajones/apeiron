@@ -21,6 +21,7 @@ type Creature struct {
 	Type            CreatureType
 	Level           CreatureLevel
 	HP              int
+	MaxHP           int
 	Actions         []CreatureAction
 	CurrentAction   CreatureAction
 	AIState         AIState
@@ -112,6 +113,7 @@ func exampleSpawn() *Creature {
 		Type:  Soldier,
 		Level: Normal,
 		HP:    100,
+		MaxHP: 100,
 		Actions: []CreatureAction{
 			ActionIdle,
 			ActionWalk,
