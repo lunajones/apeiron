@@ -5,9 +5,9 @@ import (
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-func BuildChineseSoldierBT(players []node.Player, creatures []*creature.Creature) node.BehaviorNode {
-	return &node.SelectorNode{
-		Children: []node.BehaviorNode{
+func BuildChineseSpearmanBT(players []node.Player, creatures []*creature.Creature) core.BehaviorNode {
+	return &core.SequenceNode{
+		Children: []core.BehaviorNode{
 			&node.FleeIfLowHPNode{},
 			&node.DetectOtherCreatureNode{},
 			&node.AttackTargetNode{SkillName: "SoldierSkill1"},

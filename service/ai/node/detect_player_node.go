@@ -1,29 +1,31 @@
 package node
 
 import (
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/player"
 )
 
 type DetectPlayerNode struct {
-	Players []Player
+	Players []player.Player
 }
 
-func (n *DetectPlayerNode) Tick(c *creature.Creature) BehaviorStatus {
+func (n *DetectPlayerNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	for _, p := range n.Players {
 		// Verifica visão
-		if CanSeePlayer(c, []Player{p}) != nil {
+		if creature.CanSeePlayer(c, []player.Player{p}) != nil {
 			c.TargetPlayerID = p.ID
 			c.ChangeAIState(creature.AIStateAlert)
-			return StatusSuccess
+			return core.StatusSuccess
 		}
 
 		// Verifica audição
-		if CanHearPlayer(c, []Player{p}) != nil {
+		if creature.CanHearPlayer(c, []player.Player{p}) != nil {
 			c.TargetPlayerID = p.ID
 			c.ChangeAIState(creature.AIStateAlert)
-			return StatusSuccess
+			return core.StatusSuccess
 		}
 	}
 
-	return StatusFailure
+	return core.StatusFailure
 }
