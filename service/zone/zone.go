@@ -67,7 +67,7 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType) {
 	log.Printf("[ZoneService] Criada criatura %s do tipo %s na zona %s", c.ID, cType, z.ID)
 }
 
-func TickAllZones() {
+func TickAll() {
 	for _, z := range zones {
 		z.Tick()
 	}
@@ -75,8 +75,11 @@ func TickAllZones() {
 
 func (z *Zone) Tick() {
 	for _, c := range z.Creatures {
-		c.Tick()
-		ai.ProcessAI(c)
+		if c.IsAlive {
+			ai.ProcessAI(c, z.Creatures)
+			c.TickEffects()
+			c.TickPosture()
+		}
 	}
 }
 
