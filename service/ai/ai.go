@@ -13,15 +13,11 @@ func Init() {
 }
 
 func ProcessAI(c *creature.Creature, creatures []*creature.Creature) {
-	if !c.IsAlive || c.IsPostureBroken {
-		return
-	}
-
 	tree, exists := behaviorTrees[c.Type]
 	if !exists {
 		return
 	}
 
-	// Agora os nodes internos podem usar a lista creatures se quiserem
+	// Se a BehaviorTree do tipo aceitar o creatures[], ótimo. Caso contrário, ajuste os nodes que precisam.
 	tree.Tick(c)
 }
