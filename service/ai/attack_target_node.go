@@ -2,10 +2,11 @@ package ai
 
 import (
 	"log"
+	"math"
 
 	"github.com/lunajones/apeiron/service/combat"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/zone"
+	"github.com/lunajones/apeiron/service/world"
 )
 
 type AttackTargetNode struct {
@@ -17,12 +18,11 @@ func (n *AttackTargetNode) Tick(c *creature.Creature) BehaviorStatus {
 		return StatusFailure
 	}
 
-	target := zone.FindCreatureByID(c.TargetCreatureID)
+	target := world.FindCreatureByID(c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
 		return StatusFailure
 	}
 
-	// Verificar distância
 	distance := Distance(c.Position, target.Position)
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {

@@ -7,6 +7,7 @@ import (
 	"github.com/lunajones/apeiron/service/ai"
 	"github.com/lunajones/apeiron/service/ai/old_china/mob"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/world"
 )
 
 type Player struct {
@@ -14,18 +15,10 @@ type Player struct {
 	Position creature.Position
 }
 
-type Zone struct {
-	ID        string
-	Creatures []*creature.Creature
-	Players   []*Player
-}
-
-var zones []*Zone
-
 func Init() {
 	log.Println("[ZoneService] Inicializando zonas...")
 
-	zone1 := &Zone{ID: "zone_map1"}
+	zone1 := &world.Zone{ID: "zone_map1"}
 
 	c1 := creature.NewChineseSoldier()
 	c1.Position = creature.Position{X: 0, Y: 0, Z: 0}
@@ -35,11 +28,33 @@ func Init() {
 
 	zone1.Creatures = append(zone1.Creatures, c1, c2)
 
-	zones = append(zones, zone1)
+	world.Zones = append(world.Zones, zone1)
 }
 
+func TickAll() {
+	for _, z := range world.Zones {
+		z.Tick()
+	}
+}
 
-func (z *Zone) SpawnCreature(cType creature.CreatureType) {
+func (z *world.Zone) Tick() {
+	for _, c := range z.Creatures {
+		if c.IsAlive {
+			ai.ProcessAI(c, z.Creatures)
+			c.TickEffects()
+			c.TickPosture()
+		}
+	}
+}
+
+var creatureCounter int
+
+func generateUniqueCreatureID() string {
+	creatureCounter++
+	return fmt.Sprintf("creature_%d", creatureCounter)
+}
+
+func (z *world.Zone) SpawnCreature(cType creature.CreatureType, players []*Player) {
 	c := &creature.Creature{
 		ID:      generateUniqueCreatureID(),
 		Type:    cType,
@@ -50,10 +65,9 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType) {
 			Z: 0,
 		},
 	}
-	
-	playerList := convertToAIPlayers(z.Players)
 
-	// Criar BehaviorTree com a lista atual de players e creatures na zona
+	playerList := convertToAIPlayers(players)
+
 	switch cType {
 	case creature.Soldier:
 		c.BehaviorTree = mob.BuildChineseSoldierBT(playerList, z.Creatures)
@@ -67,31 +81,6 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType) {
 	log.Printf("[ZoneService] Criada criatura %s do tipo %s na zona %s", c.ID, cType, z.ID)
 }
 
-func TickAll() {
-	for _, z := range zones {
-		z.Tick()
-	}
-}
-
-func (z *Zone) Tick() {
-	for _, c := range z.Creatures {
-		if c.IsAlive {
-			ai.ProcessAI(c, z.Creatures)
-			c.TickEffects()
-			c.TickPosture()
-		}
-	}
-}
-
-// Helpers
-
-var creatureCounter int
-
-func generateUniqueCreatureID() string {
-	creatureCounter++
-	return fmt.Sprintf("creature_%d", creatureCounter)
-}
-
 func convertToAIPlayers(players []*Player) []ai.Player {
 	var aiPlayers []ai.Player
 	for _, p := range players {
@@ -101,15 +90,4 @@ func convertToAIPlayers(players []*Player) []ai.Player {
 		})
 	}
 	return aiPlayers
-}
-
-func FindCreatureByID(id string) *creature.Creature {
-	for _, z := range zones {
-		for _, c := range z.Creatures {
-			if c.ID == id {
-				return c
-			}
-		}
-	}
-	return nil
 }
