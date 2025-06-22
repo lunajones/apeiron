@@ -36,6 +36,8 @@ type CreatureAction string
 const (
     ActionIdle       CreatureAction = "Idle"
     ActionWalk       CreatureAction = "Walk"
+    ActionParry      CreatureAction = "Parry"
+    ActionBlock      CreatureAction = "Block"
     ActionRun        CreatureAction = "Run"
     ActionJump       CreatureAction = "Jump"
     ActionSkill1     CreatureAction = "Skill1"
@@ -50,12 +52,17 @@ const (
     ActionDie        CreatureAction = "Die"
 )
 
-type CreatureState string
+type AIState string
 
 const (
-	StateIdle        CreatureState = "Idle"
-	StateAlert       CreatureState = "Alert"
-	StateAttack      CreatureState = "Attack"
-	StateDead        CreatureState = "Dead"
+	AIStateIdle        AIState = "Idle"
+	AIStatePatrolling  AIState = "Patrolling"
+	AIStateChasing     AIState = "Chasing"
+	AIStateFleeing     AIState = "Fleeing"
+	AIStateReturning   AIState = "ReturningHome"
+	AIStateStaggered   AIState = "Staggered"
+	AIStateAmbushing   AIState = "Ambushing"
+	AIStateSubStealth  AIState = "SubStealth"
+	AIStateSubStealth  AIState = "Stealth"
 )
 
