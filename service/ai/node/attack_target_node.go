@@ -6,6 +6,7 @@ import (
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/lib/combat"
+	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/world"
 )
@@ -40,7 +41,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	return core.StatusSuccess
 }
 
-func distance(a, b creature.Position) float64 {
+func distance(a, b position.Position) float64 {
 	dx := a.X - b.X
 	dy := a.Y - b.Y
 	dz := a.Z - b.Z

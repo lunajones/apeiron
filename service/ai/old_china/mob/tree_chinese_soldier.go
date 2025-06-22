@@ -1,11 +1,14 @@
 package mob
 
 import (
+	
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/player"
 )
 
-func BuildChineseSpearmanBT(players []node.Player, creatures []*creature.Creature) core.BehaviorNode {
+func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creature) core.BehaviorNode {
 	return &core.SequenceNode{
 		Children: []core.BehaviorNode{
 			&node.FleeIfLowHPNode{},

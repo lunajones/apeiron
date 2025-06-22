@@ -13,14 +13,14 @@ type DetectPlayerNode struct {
 func (n *DetectPlayerNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	for _, p := range n.Players {
 		// Verifica visão
-		if creature.CanSeePlayer(c, []player.Player{p}) != nil {
+		if creature.CanSeePlayer(c, n.Players) {
 			c.TargetPlayerID = p.ID
 			c.ChangeAIState(creature.AIStateAlert)
 			return core.StatusSuccess
 		}
 
 		// Verifica audição
-		if creature.CanHearPlayer(c, []player.Player{p}) != nil {
+		if creature.CanHearPlayer(c, n.Players) {
 			c.TargetPlayerID = p.ID
 			c.ChangeAIState(creature.AIStateAlert)
 			return core.StatusSuccess

@@ -5,6 +5,7 @@ import (
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/world"
 )
 
 type AttackVulnerableNode struct{}
@@ -14,7 +15,7 @@ func (n *AttackVulnerableNode) Tick(c *creature.Creature) core.BehaviorStatus {
 		return core.StatusFailure
 	}
 
-	target := creature.FindByID(c.TargetCreatureID)
+	target := world.FindCreatureByID(c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
 		return core.StatusFailure
 	}

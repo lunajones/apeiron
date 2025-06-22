@@ -12,7 +12,7 @@ func (n *FleeLowHPNode) Tick(c *creature.Creature) core.BehaviorStatus {
 
 	if hpPercent < 0.2 {
 		c.SetAction(creature.ActionRun)
-		c.ChangeAIState(creature.AIStateFlee)
+		c.ChangeAIState(creature.AIStateFleeing)
 		return core.StatusSuccess
 	}
 

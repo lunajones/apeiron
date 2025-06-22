@@ -10,7 +10,7 @@ type DefendRecentNode struct{}
 func (n *DefendRecentNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	if c.WasRecentlyAttacked() {
 		c.SetAction(creature.ActionBlock)
-		c.ChangeAIState(creature.AIStateDefend)
+		c.ChangeAIState(creature.AIStateDefending)
 		return core.StatusSuccess
 	}
 	return core.StatusFailure

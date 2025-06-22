@@ -15,7 +15,7 @@ func (n *DetectOtherCreatureNode) Tick(c *creature.Creature) core.BehaviorStatus
 				continue
 			}
 
-			if creature.CanSeeOtherCreatures(c, other) || creature.CanHearOtherCreatures(c, other) {
+			if creature.CanSeeOtherCreatures(c, []*creature.Creature{other}) || creature.CanHearOtherCreatures(c, []*creature.Creature{other}) {
 				c.TargetCreatureID = other.ID
 				c.ChangeAIState(creature.AIStateAlert)
 				return core.StatusSuccess

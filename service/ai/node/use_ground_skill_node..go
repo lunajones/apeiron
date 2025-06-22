@@ -5,7 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/combat"
+	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
 )
@@ -30,6 +30,8 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature) core.BehaviorStatus {
 	targetPlayer := n.Players[rand.Intn(len(n.Players))]
 	targetPos := targetPlayer.Position
 
+	log.Printf("[AI] Skill alvo é %s, tipo: %s", skill.Name, skill.SkillType)
+	
 	combat.UseSkill(c, nil, targetPos, n.SkillName, nil, nil)
 	log.Printf("[AI] Creature %s usou %s em posição (%f, %f, %f)", c.ID, n.SkillName, targetPos.X, targetPos.Y, targetPos.Z)
 

@@ -56,6 +56,7 @@ const (
 	AIStatePatrolling    AIState = "Patrolling"
 	AIStateChasing       AIState = "Chasing"
 	AIStateFleeing       AIState = "Fleeing"
+	AIStateDefending AIState = "Defending"
 	AIStateReturning     AIState = "ReturningHome"
 	AIStateStaggered     AIState = "Staggered"
 	AIStateAmbushing     AIState = "Ambushing"
