@@ -2,13 +2,15 @@ package ai
 
 import (
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/ai/old_china/mob"
+
 )
 
 var behaviorTrees map[creature.CreatureType]BehaviorNode
 
 func Init() {
 	behaviorTrees = map[creature.CreatureType]BehaviorNode{
-		creature.Soldier: BuildChineseSoldierBT(nil, nil), // Modifique se precisar
+		creature.Soldier: mob.BuildChineseSoldierBT(nil, nil), // Modifique se precisar
 	}
 }
 

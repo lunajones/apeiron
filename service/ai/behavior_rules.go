@@ -6,8 +6,8 @@ import (
 )
 
 type BehaviorRule struct {
-	ObserverSubtype creature.CreatureSubtype
-	TargetSubtype   creature.CreatureSubtype
+	ObserverType creature.Type
+	TargetType   creature.Type
 	Reaction        func(observer, target *creature.Creature)
 }
 
@@ -16,16 +16,16 @@ var behaviorRules []BehaviorRule
 func InitBehaviorRules() {
 	behaviorRules = []BehaviorRule{
 		{
-			ObserverSubtype: creature.Acolyte,
-			TargetSubtype:   creature.Zombie,
+			ObserverType: creature.Acolyte,
+			TargetType:   creature.Zombie,
 			Reaction: func(observer, target *creature.Creature) {
 				log.Printf("[BehaviorRule] Acolyte %s tenta dominar Zombie %s", observer.ID, target.ID)
 				// TODO: Implementar lógica de dominação
 			},
 		},
 		{
-			ObserverSubtype: creature.Wolf,
-			TargetSubtype:   creature.Rabbit,
+			ObserverType: creature.Wolf,
+			TargetType:   creature.Rabbit,
 			Reaction: func(observer, target *creature.Creature) {
 				log.Printf("[BehaviorRule] Wolf %s ataca Rabbit %s", observer.ID, target.ID)
 				// TODO: Implementar lógica de ataque
@@ -36,7 +36,7 @@ func InitBehaviorRules() {
 
 func EvaluateBehavior(observer, target *creature.Creature) {
 	for _, rule := range behaviorRules {
-		if rule.ObserverSubtype == observer.Subtype && rule.TargetSubtype == target.Subtype {
+		if rule.ObserverType == observer.Type && rule.TargetType == target.Type {
 			rule.Reaction(observer, target)
 		}
 	}
