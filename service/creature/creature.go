@@ -109,7 +109,7 @@ func Init() {
 func exampleSpawn() *Creature {
 	c := &Creature{
 		ID:    lib.NewUUID(),
-		Type:  Mob,
+		Type:  Soldier,
 		Level: Normal,
 		HP:    100,
 		Actions: []CreatureAction{

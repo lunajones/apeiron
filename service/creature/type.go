@@ -1,34 +1,28 @@
 package creature
 
-type CreatureType string
-type CreatureSubtype string
-type DamageType string
-type CreatureAction string
-
 type CreatureLevel string
 
 const (
-    Mob              CreatureType = "Mob"
-    Elite            CreatureType = "Elite"
-    Boss             CreatureType = "Boss"
-    RegionBoss       CreatureType = "RegionBoss"
-    WorldBoss        CreatureType = "WorldBoss"
+    Normal           CreatureLevel = "Normal"
+    Elite            CreatureLevel = "Elite"
+    Boss             CreatureLevel = "Boss"
+    RegionBoss       CreatureLevel = "RegionBoss"
+    WorldBoss        CreatureLevel = "WorldBoss"
 )
 
 type CreatureType string
 
 const (
-    Zombie           CreatureSubtype = "Zombie"
-    Spider           CreatureSubtype = "Spider"
-    Wolf             CreatureSubtype = "Wolf"
-    Acolyte          CreatureSubtype = "Acolyte"
-    Rabbit           CreatureSubtype = "Rabbit"
-    Human            CreatureSubtype = "Human"
-    Soldier          CreatureSubtype = "Soldier"
-	Victim           CreatureSubtype = "Victim"
-	Concubine        CreatureSubtype = "Concubine"
-	Slave            CreatureSubtype = "Slave"
-    Soldier          CreatureSubtype = "Soldier"
+    Zombie           CreatureType = "Zombie"
+    Spider           CreatureType = "Spider"
+    Wolf             CreatureType = "Wolf"
+    Acolyte          CreatureType = "Acolyte"
+    Rabbit           CreatureType = "Rabbit"
+    Human            CreatureType = "Human"
+    Soldier          CreatureType = "Soldier"
+	Victim           CreatureType = "Victim"
+	Concubine        CreatureType = "Concubine"
+	Slave            CreatureType = "Slave"
 )
 
 type CreatureAction string
@@ -63,6 +57,6 @@ const (
 	AIStateStaggered   AIState = "Staggered"
 	AIStateAmbushing   AIState = "Ambushing"
 	AIStateSubStealth  AIState = "SubStealth"
-	AIStateSubStealth  AIState = "Stealth"
+	AIStateStealth     AIState = "Stealth"
 )
 
