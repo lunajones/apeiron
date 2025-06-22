@@ -10,6 +10,12 @@ import (
 	"github.com/lunajones/apeiron/lib"
 )
 
+type Position struct {
+	X float64
+	Y float64
+	Z float64
+}
+
 type Creature struct {
 	ID              string
 	Type            CreatureType
@@ -29,6 +35,11 @@ type Creature struct {
 
 	// Efeitos ativos (DOTs, Buffs, Debuffs)
 	ActiveEffects []ActiveEffect
+
+	// Posição e spawn
+	SpawnPoint Position
+	Position   Position
+	SpawnRadius float64
 }
 
 var creatures []*Creature
@@ -39,7 +50,7 @@ func Init() {
 }
 
 func exampleSpawn() *Creature {
-	return &Creature{
+	c := &Creature{
 		ID:    lib.NewUUID(),
 		Type:  Mob,
 		Level: Normal,
@@ -67,7 +78,34 @@ func exampleSpawn() *Creature {
 		DynamicCombos:   make(map[CreatureAction][]CreatureAction),
 		IsAlive:         true,
 		RespawnTimeSec:  30,
+		SpawnPoint:      Position{X: 0, Y: 0, Z: 0},
+		SpawnRadius:     5.0,
 	}
+
+	c.Position = c.GenerateSpawnPosition()
+	return c
+}
+
+func (c *Creature) GenerateSpawnPosition() Position {
+	for attempts := 0; attempts < 10; attempts++ {
+		offsetX := (rand.Float64()*2 - 1) * c.SpawnRadius
+		offsetZ := (rand.Float64()*2 - 1) * c.SpawnRadius
+		newPos := Position{
+			X: c.SpawnPoint.X + offsetX,
+			Y: c.SpawnPoint.Y,
+			Z: c.SpawnPoint.Z + offsetZ,
+		}
+
+		if IsTerrainWalkable(newPos) {
+			return newPos
+		}
+	}
+	return c.SpawnPoint
+}
+
+func IsTerrainWalkable(pos Position) bool {
+	// TODO: Integrar com o TerrainService para validação real
+	return true
 }
 
 func (c *Creature) Tick() {
@@ -108,7 +146,7 @@ func (c *Creature) ChangeAIState(newState AIState) {
 	case AIStateIdle:
 		c.SetAction(ActionIdle)
 	case AIStateAlert:
-		c.SetAction(ActionIdle) // Ou uma Action visual de alerta
+		c.SetAction(ActionIdle)
 	case AIStateAttack:
 		c.SetAction(ActionAttack)
 	case AIStateDead:
@@ -128,7 +166,7 @@ func (c *Creature) GenerateRandomCombo(comboAction CreatureAction) {
 	}
 
 	var combo []CreatureAction
-	numSkillsInCombo := rand.Intn(4) + 2 // Combos de 2 a 5 skills
+	numSkillsInCombo := rand.Intn(4) + 2
 
 	for i := 0; i < numSkillsInCombo; i++ {
 		randomSkill := possibleSkills[rand.Intn(len(possibleSkills))]
@@ -157,15 +195,13 @@ func (c *Creature) TickEffects() {
 	var remainingEffects []ActiveEffect
 
 	for _, eff := range c.ActiveEffects {
-		// Verificar expiração
 		if now-eff.StartTime >= int64(eff.Duration) {
 			log.Printf("[Creature %s] efeito %s expirou", c.ID, eff.Type)
 			continue
 		}
 
-		// Processamento de DOTs
 		if eff.Type.IsDOT() {
-			damage := 10 // Exemplo fixo
+			damage := 10
 			c.HP -= damage
 			log.Printf("[Creature %s] sofreu %d de dano de %s. HP atual: %d", c.ID, damage, eff.Type, c.HP)
 
@@ -191,7 +227,7 @@ func TickAll() {
 
 func DebugPrintCreatures() {
 	for _, c := range creatures {
-		fmt.Printf("Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s\n",
-			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction)
+		fmt.Printf("Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f)\n",
+			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z)
 	}
 }
