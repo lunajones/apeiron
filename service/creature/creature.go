@@ -27,13 +27,28 @@ type Creature struct {
 	LastStateChange time.Time
 	DynamicCombos   map[CreatureAction][]CreatureAction
 
+	// Atributos base
+	Strength     int
+	Dexterity    int
+	Intelligence int
+	Focus        int
+
+	// Defesas e Resistências
+	PhysicalDefense    float64
+	MagicDefense       float64
+	RangedDefense      float64
+	ControlResistance  float64
+	StatusResistance   float64
+	CriticalResistance float64
+	CriticalChance     float64
+
 	// Controle de vida e respawn
 	IsAlive        bool
 	RespawnTimeSec int
 	TimeOfDeath    int64
-	OwnerPlayerID  string // Se for de quest, quem é o dono
+	OwnerPlayerID  string
 
-	// Efeitos ativos (DOTs, Buffs, Debuffs)
+	// Efeitos ativos
 	ActiveEffects []ActiveEffect
 
 	// Posição e spawn
@@ -78,8 +93,10 @@ type Creature struct {
 	TimePostureBroken       int64
 	PostureBreakDurationSec int
 
-	BehaviorTree ai.BehaviorNode
-
+	// AI Behavior Tree
+	BehaviorTree interface {
+		Tick(c *Creature)
+	}
 }
 
 var creatures []*Creature
@@ -137,9 +154,20 @@ func exampleSpawn() *Creature {
 		CurrentPosture:          100,
 		PostureRegenRate:        1.5,
 		PostureBreakDurationSec: 5,
+		// Atributos de combate
+		Strength:          20,
+		Dexterity:         10,
+		Intelligence:      5,
+		Focus:             8,
+		PhysicalDefense:   0.15,
+		MagicDefense:      0.05,
+		RangedDefense:     0.10,
+		ControlResistance: 0.1,
+		StatusResistance:  0.1,
+		CriticalResistance: 0.2,
+		CriticalChance:     0.05,
 	}
 	c.Position = c.GenerateSpawnPosition()
-	c.BehaviorTree = mob.BuildChineseSoldierBT(creatures)
 	return c
 }
 

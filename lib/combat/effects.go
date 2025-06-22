@@ -1,5 +1,7 @@
 package combat
 
+import "time"
+
 type EffectType string
 
 const (
@@ -24,6 +26,19 @@ const (
     EffectShield     EffectType = "Shield"     // Extra HP temporário
     EffectRegen      EffectType = "Regen"      // Heal over Time
 )
+
+type ActiveEffect struct {
+	Type          EffectType
+	StartTime     int64
+	Duration      int64 // em segundos
+	TickInterval  int64 // a cada quantos segundos o efeito aplica (ex: 1s, 2s)
+	LastTickTime  int64
+	Power         int   // Intensidade (ex: quanto de dano ou quanto de slow)
+	IsDOT         bool  // Se é Damage Over Time
+	IsDebuff      bool  // Se é um efeito negativo
+	IsCC          bool  // Se é controle de grupo (stun, etc)
+}
+
 
 // ---- Categorização por comportamento de jogo ----
 
