@@ -3,24 +3,20 @@ package ai
 import (
 	"log"
 	"math"
-
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/player"
 )
 
 // Representação simplificada de um player, até você criar o PlayerService real
-type Player struct {
-	ID       string
-	Position creature.Position
-}
 
 // Esta função deverá ser substituída no futuro por uma chamada ao PlayerService real
-func GetPlayersInWorld() []Player {
+func GetPlayersInWorld() []player.Player {
 	// TODO: No futuro, busque os players reais
-	return []Player{}
+	return []player.Player{}
 }
 
 // Verifica se a criatura pode ver algum player
-func CanSeePlayer(c *creature.Creature, players []Player) *Player {
+func CanSeePlayer(c *creature.Creature, players []player.Player) *player.Player {
 	if c.IsBlind || c.VisionRange <= 0 || c.FieldOfViewDegrees <= 0 {
 		return nil
 	}
@@ -49,7 +45,7 @@ func CanSeePlayer(c *creature.Creature, players []Player) *Player {
 }
 
 // Verifica se a criatura pode ouvir algum player
-func CanHearPlayer(c *creature.Creature, players []Player) *Player {
+func CanHearPlayer(c *creature.Creature, players []player.Player) *player.Player {
 	if c.IsDeaf || c.HearingRange <= 0 {
 		return nil
 	}

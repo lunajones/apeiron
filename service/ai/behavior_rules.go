@@ -6,8 +6,8 @@ import (
 )
 
 type BehaviorRule struct {
-	ObserverType creature.Type
-	TargetType   creature.Type
+	ObserverType creature.CreatureType
+	TargetType   creature.CreatureType
 	Reaction        func(observer, target *creature.Creature)
 }
 

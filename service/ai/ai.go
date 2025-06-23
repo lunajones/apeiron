@@ -2,16 +2,20 @@ package ai
 
 import (
 	"github.com/lunajones/apeiron/service/ai/old_china/mob"
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/player"
 )
 
-var behaviorTrees map[creature.CreatureType]BehaviorNode
+var behaviorTrees map[creature.CreatureType]core.BehaviorNode
 
 func Init() {
 	InitBehaviorRules()
+	dummyPlayers := []player.Player{}              // Por enquanto vazio
+	dummyCreatures := []*creature.Creature{}       // Por enquanto vazio
 
-	behaviorTrees = map[creature.CreatureType]BehaviorNode{
-		creature.Soldier: mob.BuildChineseSoldierBT(),
+	behaviorTrees = map[creature.CreatureType]core.BehaviorNode{
+		creature.Soldier: mob.BuildChineseSoldierBT(dummyPlayers, dummyCreatures),
 		// No futuro: adicionar outros tipos
 	}
 }

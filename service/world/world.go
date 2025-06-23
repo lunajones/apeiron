@@ -2,17 +2,11 @@ package world
 
 import (
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/zone"
 )
 
-var Zones []*Zone
-
-type Zone struct {
-	ID        string
-	Creatures []*creature.Creature
-}
-
 func FindCreatureByID(id string) *creature.Creature {
-	for _, z := range Zones {
+	for _, z := range zone.Zones {
 		for _, c := range z.Creatures {
 			if c.ID == id {
 				return c
@@ -20,4 +14,10 @@ func FindCreatureByID(id string) *creature.Creature {
 		}
 	}
 	return nil
+}
+
+func TickAll() {
+	for _, z := range zone.Zones {
+		z.Tick()
+	}
 }

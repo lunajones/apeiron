@@ -105,6 +105,72 @@ func Init() {
 	creatures = append(creatures, exampleSpawn())
 }
 
+func NewChineseSoldier() *Creature {
+	c := &Creature{
+		ID:    lib.NewUUID(),
+		Type:  Soldier,
+		Level: Normal,
+		HP:    100,
+		MaxHP: 100,
+		Actions: []CreatureAction{
+			ActionIdle,
+			ActionWalk,
+			ActionRun,
+			ActionParry,
+			ActionBlock,
+			ActionJump,
+			ActionSkill1,
+			ActionSkill2,
+			ActionSkill3,
+			ActionSkill4,
+			ActionSkill5,
+			ActionCombo1,
+			ActionCombo2,
+			ActionCombo3,
+			ActionDie,
+		},
+		CurrentAction:           ActionIdle,
+		AIState:                 AIStateIdle,
+		LastStateChange:         time.Now(),
+		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
+		IsAlive:                 true,
+		RespawnTimeSec:          30,
+		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
+		SpawnRadius:             5.0,
+		FieldOfViewDegrees:      120,
+		VisionRange:             15,
+		HearingRange:            10,
+		IsBlind:                 false,
+		IsDeaf:                  false,
+		DetectionRadius:         10.0,
+		AttackRange:             2.5,
+		SkillCooldowns:          make(map[CreatureAction]time.Time),
+		AggroTable:              make(map[string]float64),
+		MoveSpeed:               3.5,
+		AttackSpeed:             1.2,
+		Faction:                 "Monsters",
+		IsHostile:               true,
+		MaxPosture:              100,
+		CurrentPosture:          100,
+		PostureRegenRate:        1.5,
+		PostureBreakDurationSec: 5,
+		// Atributos de combate
+		Strength:          20,
+		Dexterity:         10,
+		Intelligence:      5,
+		Focus:             8,
+		PhysicalDefense:   0.15,
+		MagicDefense:      0.05,
+		RangedDefense:     0.10,
+		ControlResistance: 0.1,
+		StatusResistance:  0.1,
+		CriticalResistance: 0.2,
+		CriticalChance:     0.05,
+	}
+	c.Position = c.GenerateSpawnPosition()
+	return c
+}
+
 func exampleSpawn() *Creature {
 	c := &Creature{
 		ID:    lib.NewUUID(),
