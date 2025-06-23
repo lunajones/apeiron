@@ -14,14 +14,11 @@ func main() {
 	log.Println("[Main] initializing system...")
 
 	combat.InitSkills()
-
-	// Inicializa as zonas e criaturas
 	zone.Init()
 
-	// Inicializa as árvores de comportamento para as criaturas da primeira zona
-	if len(zone.Zones) > 0 {
-		ai.InitBehaviorTrees(world.Players, zone.Zones[0].Creatures)
-	}
+	ai.InitBehaviorTrees(world.Players, zone.Zones)
+
+}
 
 	// Loop de Tick a cada 50ms (~20 ticks por segundo)
 	ticker := time.NewTicker(50 * time.Millisecond)

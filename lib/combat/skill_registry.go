@@ -47,6 +47,9 @@ func InitSkills() {
 		Range:       3.0,
 		CooldownSec: 10,
 	}
+
+	log.Println("[Skill Registry] finishing system...")
+
 }
 
 var SkillRegistry = map[string]Skill{}

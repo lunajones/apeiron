@@ -33,6 +33,9 @@ func Init() {
 	zone1.Creatures = append(zone1.Creatures, c1, c2)
 
 	Zones = append(Zones, zone1)
+	
+	log.Println("[Zone] finishing zones...")
+
 }
 
 func (z *Zone) Tick(ctx core.AIContext) {

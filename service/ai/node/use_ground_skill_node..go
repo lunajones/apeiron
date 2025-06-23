@@ -1,6 +1,8 @@
 package node
 
 import (
+	"log"
+
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/lib/combat"
@@ -11,6 +13,7 @@ type UseGroundSkillNode struct {
 }
 
 func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando UseGroundSkillNode", c.ID)
 	if len(ctx.Players) == 0 {
 		return core.StatusFailure
 	}
