@@ -2,7 +2,7 @@ package mob
 
 import (
 	"math"
-
+	"time"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
@@ -41,13 +41,15 @@ func (n *MaintainDistanceForWolfNode) Tick(c *creature.Creature, ctx core.AICont
 }
 
 func BuildChineseWolfBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
-	return &core.SequenceNode{
+	return &core.SelectorNode{
 		Children: []core.BehaviorNode{
-			&node.FleeIfLowHPNode{},
+			core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 1*time.Second),
+			core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 1*time.Second),
+			core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
 			&node.DetectPlayerNode{Players: players},
 			&MaintainDistanceForWolfNode{Players: players},
-			&node.DetectOtherCreatureNode{},
 			&node.AttackIfVulnerableNode{SkillName: "WolfBite"},
+			&node.AttackTargetNode{SkillName: "WolfBite"},
 			&node.RandomIdleNode{},
 		},
 	}

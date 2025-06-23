@@ -35,28 +35,34 @@ func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos 
 	attacker.SkillCooldowns[skillData.Action] = time.Now()
 }
 
-func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, skillData Skill) {
+func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, skill Skill) {
 	var damage int
-	switch skillData.SkillType {
+	switch skill.SkillType {
 	case "Physical":
-		damage = CalculatePhysicalDamage(attacker, target, skillData.Multiplier)
+		damage = CalculatePhysicalDamage(attacker, target, skill.Multiplier)
 	case "Magic":
-		damage = CalculateMagicDamage(attacker, target, skillData.Multiplier)
+		damage = CalculateMagicDamage(attacker, target, skill.Multiplier)
 	default:
-		log.Printf("[SkillExecutor] Tipo %s não implementado", skillData.SkillType)
+		log.Printf("[SkillExecutor] Tipo %s não implementado", skill.SkillType)
 		return
 	}
 
 	target.HP -= damage
-	log.Printf("[SkillExecutor] %s usou %s contra %s causando %d de dano. HP alvo: %d", attacker.ID, skillData.Name, target.ID, damage, target.HP)
+	log.Printf("[SkillExecutor] %s usou %s contra %s causando %d de dano. HP alvo: %d", attacker.ID, skill.Name, target.ID, damage, target.HP)
 
-	if skillData.IsDOT {
-		dotPower := damage / (skillData.DOTDurationSec / skillData.DOTTickSec)
+	if target.HP <= 0 {
+		target.IsAlive = false
+		target.IsCorpse = true
+		log.Printf("[Combat] %s morreu para %s.", target.ID, attacker.ID)
+	}
+
+	if skill.IsDOT {
+		dotPower := damage / (skill.DOTDurationSec / skill.DOTTickSec)
 		effect := creature.ActiveEffect{
 			Type:         creature.EffectPoison,
 			StartTime:    time.Now().Unix(),
-			Duration:     int64(skillData.DOTDurationSec),
-			TickInterval: int64(skillData.DOTTickSec),
+			Duration:     int64(skill.DOTDurationSec),
+			TickInterval: int64(skill.DOTTickSec),
 			Power:        dotPower,
 			IsDOT:        true,
 			IsDebuff:     true,
@@ -64,6 +70,7 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 		target.ApplyEffect(effect)
 	}
 }
+
 
 func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, skillData Skill, creatures []*creature.Creature, players []*player.Player) {
 	for _, c := range creatures {

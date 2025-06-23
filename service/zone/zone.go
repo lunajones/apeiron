@@ -6,7 +6,7 @@ import (
 	"github.com/lunajones/apeiron/service/ai/core"
 	
 	"github.com/lunajones/apeiron/lib/position"
-	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/creature/old_china/mob"
 	"github.com/lunajones/apeiron/service/player"
 )
 
@@ -24,19 +24,24 @@ func Init() {
 
 	zone1 := &Zone{ID: "zone_map1"}
 
-	c1 := creature.NewChineseSoldier()
-	c1.Position = position.Position{X: 0, Y: 0, Z: 0}
+	s1 := mob.NewChineseSoldier()
+	s1.Position = position.Position{X: 0, Y: 0, Z: 0}
 
-	c2 := creature.NewChineseSoldier()
-	c2.Position = position.Position{X: 2, Y: 0, Z: 0}
+	// Soldier 2
+	s2 := mob.NewChineseSoldier()
+	s2.Position = position.Position{X: 2, Y: 0, Z: 0}
 
-	c3 := creature.NewChineseWolf()
-	c3.Position = position.Position{X: 0, Y: 0, Z: 0}
+	// Wolf 1
+	w1 := mob.NewChineseWolf()
+	w1.Position = position.Position{X: 1, Y: 0, Z: 0}
+	w1.SetNeedValue(creature.NeedHunger, 100)
+	
+	// Wolf 2
+	w2 := mob.NewChineseWolf()
+	w2.Position = position.Position{X: 3, Y: 0, Z: 0}
+	w2.SetNeedValue(creature.NeedHunger, 100)
 
-	c4 := creature.NewChineseWolf()
-	c4.Position = position.Position{X: 2, Y: 0, Z: 0}
-
-	zone1.Creatures = append(zone1.Creatures, c1, c2, c3, c4)
+	zone1.Creatures = append(zone1.Creatures, s1, s2, w1, w2)
 
 	Zones = append(Zones, zone1)
 	

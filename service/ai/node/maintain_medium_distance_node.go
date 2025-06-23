@@ -2,6 +2,7 @@ package node
 
 import (
 	"math"
+	"log"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
@@ -12,6 +13,8 @@ type MaintainMediumDistanceNode struct {
 }
 
 func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando MaintainMediumDistanceNode", c.ID)
+
 	for _, p := range ctx.Players {
 
 		dx := p.Position.X - c.Position.X

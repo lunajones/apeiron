@@ -44,7 +44,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.B
 	}
 }
 
-	distance := calculateDistance(c.Position, target.Position)
+	distance := CalculateDistance(c.Position, target.Position)
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
 		log.Printf("[AI] Skill %s não encontrada para %s.", n.SkillName, c.ID)

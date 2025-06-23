@@ -11,10 +11,13 @@ import (
 type FleeIfLowHPNode struct{}
 
 func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando FleeIfLowHPNode", c.ID)
+
 	hpThreshold := 30
 
 	// 1. Se HP ainda tá acima do limite, não precisa fugir
 	if c.HP > hpThreshold {
+		log.Printf("[AI] %s falhou ao executar FleeIfLowHPNode", c.ID)
 		return core.StatusFailure
 	}
 

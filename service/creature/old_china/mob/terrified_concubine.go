@@ -1,8 +1,8 @@
-package creature
+package mob
 
 import "github.com/lunajones/apeiron/lib/combat"
 
-func NewSoldier(id string, ctype CreatureType) *Creature {
+func NewTerrifiedConcubine(id string, ctype CreatureType) *Creature {
 	return &Creature{
 		ID:    id,
 		Name:  "Soldier",

@@ -1,25 +1,27 @@
-package creature
+package mob
 
-import "github.com/lunajones/apeiron/lib/combat"
+import (
+	"github.com/lunajones/apeiron/lib/combat"
+	"github.com/lunajones/apeiron/service/creature"
+)
 
-func NewSoldier(id string, ctype CreatureType) *Creature {
-	return &Creature{
+func NewChineseArcher(id string) *creature.Creature {
+	return &creature.Creature{
 		ID:    id,
-		Name:  "Soldier",
-		TypLevele:  clevel,
-		Types: []CreatureType{
-			Human,
-			Soldier,
+		Name:  "Chinese Archer",
+		Types: []creature.CreatureType{
+			creature.Human,
+			creature.Soldier,
 		},
 		HP:    250,
 		MaxHP: 250,
-		Actions: []CreatureAction{
-			ActionIdle,
-			ActionWalk,
-			ActionSkill1,
-			ActionSkill2,
-			ActionCombo1,
-			ActionDie,
+		Actions: []creature.CreatureAction{
+			creature.ActionIdle,
+			creature.ActionWalk,
+			creature.ActionSkill1,
+			creature.ActionSkill2,
+			creature.ActionCombo1,
+			creature.ActionDie,
 		},
 		DamageWeakness: map[combat.DamageType]float32{
 			combat.Piercing: 1.2,

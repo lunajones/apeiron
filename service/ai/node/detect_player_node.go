@@ -14,6 +14,7 @@ type DetectPlayerNode struct {
 }
 
 func (n *DetectPlayerNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando DetectPlayerNode", c.ID)
 	for _, p := range ctx.Players {
 		// Se a criatura estiver com medo, ela evita até olhar
 		if c.MentalState == creature.MentalStateAfraid {

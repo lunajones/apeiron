@@ -10,6 +10,7 @@ import (
 type DetectOtherCreatureNode struct{}
 
 func (n *DetectOtherCreatureNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando DetectOtherCreatureNode", c.ID)
 	for _, other := range ctx.Creatures {
 		// Ignorar a si mesmo
 		if other.ID == c.ID || !other.IsAlive {

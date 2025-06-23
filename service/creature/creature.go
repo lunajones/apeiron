@@ -21,7 +21,8 @@ type MemoryEvent struct {
 
 type Creature struct {
 	ID              string
-	Type            CreatureType
+	Name            string
+	Types           []CreatureType
 	Level           CreatureLevel
 	HP              int
 	MaxHP           int
@@ -49,6 +50,7 @@ type Creature struct {
 
 	// Controle de vida e respawn
 	IsAlive        bool
+	IsCorpse       bool
 	RespawnTimeSec int
 	TimeOfDeath    int64
 	OwnerPlayerID  string
@@ -123,104 +125,10 @@ func Init() {
 	creatures = append(creatures, exampleSpawn())
 }
 
-func NewChineseSoldier() *Creature {
-	log.Println("[Creature] Initializing chinese soldier...")
-
-	c := &Creature{
-		ID:    lib.NewUUID(),
-		Type:  Soldier,
-		Level: Normal,
-		HP:    100,
-		MaxHP: 100,
-		Actions: []CreatureAction{
-			ActionIdle,
-			ActionWalk,
-			ActionRun,
-			ActionParry,
-			ActionBlock,
-			ActionJump,
-			ActionSkill1,
-			ActionSkill2,
-			ActionSkill3,
-			ActionSkill4,
-			ActionSkill5,
-			ActionCombo1,
-			ActionCombo2,
-			ActionCombo3,
-			ActionDie,
-		},
-		CurrentAction:           ActionIdle,
-		AIState:                 AIStateIdle,
-		LastStateChange:         time.Now(),
-		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
-		IsAlive:                 true,
-		RespawnTimeSec:          30,
-		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:             5.0,
-		FieldOfViewDegrees:      120,
-		VisionRange:             15,
-		HearingRange:            10,
-		IsBlind:                 false,
-		IsDeaf:                  false,
-		DetectionRadius:         10.0,
-		AttackRange:             2.5,
-		SkillCooldowns:          make(map[CreatureAction]time.Time),
-		AggroTable:              make(map[string]float64),
-		MoveSpeed:               3.5,
-		AttackSpeed:             1.2,
-		Faction:                 "Monsters",
-		IsHostile:               true,
-		MaxPosture:              100,
-		CurrentPosture:          100,
-		PostureRegenRate:        1.5,
-		PostureBreakDurationSec: 5,
-		// Atributos de combate
-		Strength:          20,
-		Dexterity:         10,
-		Intelligence:      5,
-		Focus:             8,
-		PhysicalDefense:   0.15,
-		MagicDefense:      0.05,
-		RangedDefense:     0.10,
-		ControlResistance: 0.1,
-		StatusResistance:  0.1,
-		CriticalResistance: 0.2,
-		CriticalChance:     0.05,
-		Needs: []Need{
-			{Type: NeedHunger, Value: 0, Threshold: 50},
-		},
-		Tags: []CreatureTag{TagHumanoid},
-	}
-	c.Position = c.GenerateSpawnPosition()
-	return c
-}
-
-func NewChineseWolf() *Creature {
-	log.Println("[Creature] Initializing chinese wolf...")
-	c:= &Creature{
-		ID:          "",
-		Type:        Wolf,
-		Level:       Normal,
-		IsAlive:     true,
-		HP:          100,
-		Tags:        []CreatureTag{TagAnimal, TagPredator},
-		Needs: []Need{
-			{Type: NeedHunger, Value: 50, Threshold: 70},
-			{Type: NeedThirst, Value: 50, Threshold: 70},
-			{Type: NeedSleep, Value: 50, Threshold: 70},
-		},
-		MentalState: MentalStateCalm,
-		CurrentRole: RoleNone,
-	}
-
-	c.Position = c.GenerateSpawnPosition()
-	return c
-}
-
 func exampleSpawn() *Creature {
 	c := &Creature{
 		ID:    lib.NewUUID(),
-		Type:  Soldier,
+		Types: []CreatureType{Soldier},
 		Level: Normal,
 		HP:    100,
 		MaxHP: 100,
@@ -482,7 +390,7 @@ func DebugPrintCreatures() {
 	for _, c := range creatures {
 		fmt.Printf(
 			"Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f), Posture: %.1f/%.1f\n",
-			c.ID, c.Type, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z, c.CurrentPosture, c.MaxPosture,
+			c.ID, c.Types, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z, c.CurrentPosture, c.MaxPosture,
 		)
 	}
 }
@@ -537,6 +445,39 @@ func (c *Creature) GetNeedValue(needType NeedType) float64 {
 func (c *Creature) HasTag(tag CreatureTag) bool {
 	for _, t := range c.Tags {
 		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Creature) SetNeedValue(needType NeedType, value float64) {
+	for i := range c.Needs {
+		if c.Needs[i].Type == needType {
+			c.Needs[i].Value = value
+			return
+		}
+	}
+}
+
+func (c *Creature) ModifyNeed(needType NeedType, amount float64) {
+	for i := range c.Needs {
+		if c.Needs[i].Type == needType {
+			c.Needs[i].Value += amount
+			if c.Needs[i].Value < 0 {
+				c.Needs[i].Value = 0
+			}
+			if c.Needs[i].Value > 100 {
+				c.Needs[i].Value = 100
+			}
+			break
+		}
+	}
+}
+
+func (c *Creature) HasType(t CreatureType) bool {
+	for _, ct := range c.Types {
+		if ct == t {
 			return true
 		}
 	}

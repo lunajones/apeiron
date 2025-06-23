@@ -12,6 +12,8 @@ import (
 type RandomIdleNode struct{}
 
 func (n *RandomIdleNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando RandomIdleNode", c.ID)
+
 	// Checa necessidades básicas
 	hunger := c.GetNeedValue(creature.NeedHunger)
 	thirst := c.GetNeedValue(creature.NeedThirst)

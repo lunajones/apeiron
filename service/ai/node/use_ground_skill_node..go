@@ -15,6 +15,8 @@ type UseGroundSkillNode struct {
 }
 
 func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando UseGroundSkillNode", c.ID)
+
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
 		log.Printf("[AI] Skill %s não encontrada.", n.SkillName)

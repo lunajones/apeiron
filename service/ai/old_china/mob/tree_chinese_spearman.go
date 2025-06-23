@@ -15,7 +15,7 @@ type MaintainMediumDistanceNode struct {
 
 
 func BuildChineseSpearmanBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
-	return &core.SequenceNode{
+	return &core.SelectorNode{
 		Children: []core.BehaviorNode{
 			&node.FleeIfLowHPNode{},
 			&node.DetectPlayerNode{Players: players},
