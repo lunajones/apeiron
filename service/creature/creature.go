@@ -14,6 +14,11 @@ import (
 
 )
 
+type MemoryEvent struct {
+	Description string
+	Timestamp   time.Time
+}
+
 type Creature struct {
 	ID              string
 	Type            CreatureType
@@ -95,6 +100,15 @@ type Creature struct {
 
 	// AI Behavior Tree
 	BehaviorTree    BehaviorTree
+
+	// AI Behavior decision fields
+
+	Needs       []Need
+	CurrentRole Role
+	Tags        []CreatureTag
+	Memory      []MemoryEvent
+	MentalState MentalState
+
 	
 }
 
@@ -172,6 +186,10 @@ func NewChineseSoldier() *Creature {
 		StatusResistance:  0.1,
 		CriticalResistance: 0.2,
 		CriticalChance:     0.05,
+		Needs: []Need{
+			{Type: NeedHunger, Value: 0, Threshold: 50},
+		},
+		Tags: []CreatureTag{TagHumanoid},
 	}
 	c.Position = c.GenerateSpawnPosition()
 	return c
@@ -238,6 +256,10 @@ func exampleSpawn() *Creature {
 		StatusResistance:  0.1,
 		CriticalResistance: 0.2,
 		CriticalChance:     0.05,
+		Needs: []Need{
+			{Type: NeedHunger, Value: 0, Threshold: 50},
+		},
+		Tags: []CreatureTag{TagHumanoid},
 	}
 	c.Position = c.GenerateSpawnPosition()
 	return c
@@ -470,13 +492,31 @@ func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 }
 
 // --- Função CanSeePlayer ---
-func CanSeePlayer(c *Creature, players []player.Player) bool {
+func CanSeePlayer(c *Creature, players []*player.Player) bool {
 	// Exemplo simples só para compilar
 	return len(players) > 0
 }
 
 // --- Função CanHearPlayer ---
-func CanHearPlayer(c *Creature, players []player.Player) bool {
+func CanHearPlayer(c *Creature, players []*player.Player) bool {
 	// Exemplo simples só para compilar
 	return len(players) > 0
+}
+
+func (c *Creature) GetNeedValue(needType NeedType) float64 {
+	for _, n := range c.Needs {
+		if n.Type == needType {
+			return n.Value
+		}
+	}
+	return 0
+}
+
+func (c *Creature) HasTag(tag CreatureTag) bool {
+	for _, t := range c.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }

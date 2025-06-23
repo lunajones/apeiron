@@ -13,35 +13,45 @@ type AttackIfVulnerableNode struct {
 }
 
 func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
-	log.Printf("[AI] %s executando AttackIfVulnerableNode", c.ID)
-
 	if c.TargetCreatureID == "" {
+		log.Printf("[AI] %s não tem target para avaliar vulnerabilidade.", c.ID)
 		return core.StatusFailure
 	}
 
 	target := creature.FindByID(ctx.Creatures, c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
+		log.Printf("[AI] %s: Target %s inválido ou morto.", c.ID, c.TargetCreatureID)
 		return core.StatusFailure
 	}
 
-	if target.HP > 30 {
-		log.Printf("[AI] Target %s com HP alto demais para vulnerável.", target.ID)
+	// Calcular percentual de HP do alvo
+	hpPercent := (float64(target.HP) / 100.0) * 100
+	if hpPercent > 30 {
+		log.Printf("[AI] %s: Target %s não está vulnerável (HP: %.2f%%).", c.ID, target.ID, hpPercent)
 		return core.StatusFailure
 	}
 
-	distance := calculateDistance(c.Position, target.Position)
-	skill, exists := combat.SkillRegistry[n.SkillName]
-	if !exists {
-		log.Printf("[AI] Skill %s não encontrada.", n.SkillName)
+	// Regra: Se criatura está com medo e não enraivecida, recusa atacar
+	if c.MentalState == creature.MentalStateAfraid && c.MentalState != creature.MentalStateEnraged {
+		log.Printf("[AI] %s está com medo, ignorando target vulnerável.", c.ID)
 		return core.StatusFailure
 	}
 
-	if distance > skill.Range {
-		log.Printf("[AI] Target %s fora de alcance de %s.", target.ID, n.SkillName)
-		return core.StatusFailure
+	// Regra: Se a criatura tem fome e é predador, ataca alvos vulneráveis com mais frequência
+	hunger := c.GetNeedValue(creature.NeedHunger)
+	if hunger > 80 && c.HasTag(creature.TagPredator) {
+		log.Printf("[AI] %s faminto, atacando alvo vulnerável %s.", c.ID, target.ID)
+		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
+		return core.StatusSuccess
 	}
 
-	combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
-	log.Printf("[AI] %s executou ataque vulnerável em %s com %s", c.ID, target.ID, n.SkillName)
-	return core.StatusSuccess
+	// Regra final: Se está agressivo ou enraivecido, ataca mesmo sem estar com fome
+	if c.MentalState == creature.MentalStateAggressive || c.MentalState == creature.MentalStateEnraged {
+		log.Printf("[AI] %s agressivo/enraivecido, atacando %s.", c.ID, target.ID)
+		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
+		return core.StatusSuccess
+	}
+
+	log.Printf("[AI] %s decidiu não atacar o alvo vulnerável %s.", c.ID, target.ID)
+	return core.StatusFailure
 }

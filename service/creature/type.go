@@ -47,6 +47,7 @@ const (
     ActionTeamSkill3 CreatureAction = "TeamSkill3"
     ActionDie        CreatureAction = "Die"
     ActionAttack     CreatureAction = "Attack"
+    ActionSleep      CreatureAction = "Sleep"
 )
 
 type AIState string
@@ -56,7 +57,7 @@ const (
 	AIStatePatrolling    AIState = "Patrolling"
 	AIStateChasing       AIState = "Chasing"
 	AIStateFleeing       AIState = "Fleeing"
-	AIStateDefending AIState = "Defending"
+	AIStateDefending     AIState = "Defending"
 	AIStateReturning     AIState = "ReturningHome"
 	AIStateStaggered     AIState = "Staggered"
 	AIStateAmbushing     AIState = "Ambushing"
@@ -66,4 +67,51 @@ const (
 	AIStateAttack        AIState = "Attack"
 	AIStateDead          AIState = "Dead"
 	AIStatePostureBroken AIState = "PostureBroken"
+    AIStateSearchFood    AIState = "SearchFood"
+	AIStateSearchWater   AIState = "SearchWater"
+)
+
+
+type NeedType int
+
+const (
+	NeedHunger NeedType = iota
+	NeedThirst
+	NeedSleep
+	NeedSocial
+)
+
+type Need struct {
+	Type      NeedType
+	Value     float64  // Exemplo: 0 a 100
+	Threshold float64  // Valor em que a necessidade vira urgente
+}
+
+type Role string
+
+const (
+	RoleMerchant Role = "Merchant"
+	RoleHunter   Role = "Hunter"
+	RoleGuard    Role = "Guard"
+	RoleNone     Role = "None"
+)
+
+type CreatureTag string
+
+const (
+	TagHumanoid CreatureTag = "Humanoid"
+	TagAnimal   CreatureTag = "Animal"
+	TagPrey     CreatureTag = "Prey"
+	TagPredator CreatureTag = "Predator"
+	TagMerchant CreatureTag = "Merchant"
+)
+
+type MentalState string
+
+const (
+	MentalStateCalm     MentalState = "Calm"
+	MentalStateAfraid   MentalState = "Afraid"
+	MentalStateAggressive MentalState = "Aggressive"
+	MentalStateEnraged  MentalState = "Enraged"
+	MentalStateDesperate MentalState = "Desperate"
 )

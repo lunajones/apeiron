@@ -14,12 +14,12 @@ type MaintainMediumDistanceNode struct {
 }
 
 
-func BuildChineseSpearmanBT(players []player.Player, creatures []*creature.Creature) core.BehaviorNode {
+func BuildChineseSpearmanBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
 	return &core.SequenceNode{
 		Children: []core.BehaviorNode{
 			&node.FleeIfLowHPNode{},
 			&node.DetectPlayerNode{Players: players},
-			&MaintainMediumDistanceNode{Players: players},
+			&MaintainMediumDistanceNode{},
 			&node.DetectOtherCreatureNode{},
 			&node.RandomIdleNode{},
 		},

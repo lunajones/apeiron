@@ -9,16 +9,12 @@ import (
 
 var behaviorTrees map[creature.CreatureType]creature.BehaviorTree
 
-func InitBehaviorTrees(players []*player.Player, zones []*zone.Zone) {
+func InitBehaviorTrees(players []*player.Player, creatures []*creature.Creature) {
 	behaviorTrees = make(map[creature.CreatureType]creature.BehaviorTree)
 
-	playerList := convertToAIPlayers(players)
-
-	for _, z := range zones {
-		for _, c := range z.Creatures {
-			tree := factory.CreateBehaviorTree(c.Type, playerList, z.Creatures)
-			c.BehaviorTree = tree
-		}
+	for _, c := range creatures {
+		tree := factory.CreateBehaviorTree(c.Type, players, creatures)
+		c.BehaviorTree = tree
 	}
 }
 
