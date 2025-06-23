@@ -1,41 +1,30 @@
 package ai
 
 import (
-	"github.com/lunajones/apeiron/service/ai/old_china/mob"
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/factory"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
 )
 
 var behaviorTrees map[creature.CreatureType]core.BehaviorNode
 
-func Init() {
-	InitBehaviorRules()
-	dummyPlayers := []player.Player{}              // Por enquanto vazio
-	dummyCreatures := []*creature.Creature{}       // Por enquanto vazio
-
+func InitBehaviorTrees(players []player.Player, creatures []*creature.Creature) {
 	behaviorTrees = map[creature.CreatureType]core.BehaviorNode{
-		creature.Soldier: mob.BuildChineseSoldierBT(dummyPlayers, dummyCreatures),
-		// No futuro: adicionar outros tipos
+		creature.Soldier:        factory.BuildChineseSoldierBT(players, creatures),
 	}
 }
 
-func ProcessAI(c *creature.Creature, creatures []*creature.Creature) {
+func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*player.Player) {
 	tree, exists := behaviorTrees[c.Type]
 	if !exists {
 		return
 	}
 
-	// Se a BehaviorTree do tipo aceitar o creatures[], ótimo. Caso contrário, ajuste os nodes que precisam.
-	tree.Tick(c)
-}
-
-func TickZone(z *zone.Zone) {
-	for _, c := range z.Creatures {
-		if c.IsAlive {
-			ProcessAI(c, z.Creatures)
-			c.TickEffects()
-			c.TickPosture()
-		}
+	ctx := core.AIContext{
+		Creatures: creatures,
+		Players:   players,
 	}
+
+	tree.Tick(c, ctx)
 }

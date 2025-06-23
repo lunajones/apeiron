@@ -6,7 +6,6 @@ import (
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
-	"github.com/lunajones/apeiron/service/factory"
 )
 
 
@@ -15,7 +14,7 @@ type Zone struct {
 	Creatures []*creature.Creature
 }
 
-var Zones []*zone.Zone
+var Zones []*Zone
 var creatureCounter int
 
 func Init() {
@@ -61,7 +60,6 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Play
 		},
 	}
 
-	playerList := convertToAIPlayers(players)
 	c.BehaviorTree = tree
 
 	z.Creatures = append(z.Creatures, c)
