@@ -3,6 +3,7 @@ package world
 import (
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/zone"
+	"github.com/lunajones/apeiron/service/ai"
 )
 
 func FindCreatureByID(id string) *creature.Creature {
@@ -18,6 +19,6 @@ func FindCreatureByID(id string) *creature.Creature {
 
 func TickAll() {
 	for _, z := range zone.Zones {
-		z.Tick()
+		ai.TickZone(z)
 	}
 }

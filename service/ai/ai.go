@@ -29,3 +29,13 @@ func ProcessAI(c *creature.Creature, creatures []*creature.Creature) {
 	// Se a BehaviorTree do tipo aceitar o creatures[], ótimo. Caso contrário, ajuste os nodes que precisam.
 	tree.Tick(c)
 }
+
+func TickZone(z *zone.Zone) {
+	for _, c := range z.Creatures {
+		if c.IsAlive {
+			ProcessAI(c, z.Creatures)
+			c.TickEffects()
+			c.TickPosture()
+		}
+	}
+}

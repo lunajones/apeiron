@@ -3,10 +3,10 @@ package zone
 import (
 	"fmt"
 	"log"
-	"github.com/lunajones/apeiron/service/ai/old_china/mob"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/service/factory"
 )
 
 
@@ -35,17 +35,7 @@ func Init() {
 
 func TickAll() {
 	for _, z := range Zones {
-		z.Tick()
-	}
-}
-
-func (z *Zone) Tick() {
-	for _, c := range z.Creatures {
-		if c.IsAlive {
-			ai.ProcessAI(c, z.Creatures)
-			c.TickEffects()
-			c.TickPosture()
-		}
+		ai.TickZone(z)
 	}
 }
 
@@ -70,14 +60,7 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Play
 
 	playerList := convertToAIPlayers(players)
 
-	switch cType {
-	case creature.Soldier:
-		c.BehaviorTree = mob.BuildChineseSoldierBT(playerList, z.Creatures)
-	case creature.ChineseSpearman:
-		c.BehaviorTree = mob.BuildChineseSpearmanBT(playerList, z.Creatures)
-	default:
-		log.Printf("[ZoneService] Tipo de criatura %s sem BehaviorTree definida", cType)
-	}
+	c.BehaviorTree = behaviorfactory.CreateBehaviorTree(cType, playerList, z.Creatures)
 
 	z.Creatures = append(z.Creatures, c)
 	log.Printf("[ZoneService] Criada criatura %s do tipo %s na zona %s", c.ID, cType, z.ID)
