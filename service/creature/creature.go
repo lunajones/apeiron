@@ -110,6 +110,8 @@ func Init() {
 }
 
 func NewChineseSoldier() *Creature {
+	log.Println("[Creature] Initializing creature...")
+
 	c := &Creature{
 		ID:    lib.NewUUID(),
 		Type:  Soldier,
@@ -252,9 +254,13 @@ func (c *Creature) GenerateSpawnPosition() position.Position {
 		}
 
 		if IsTerrainWalkable(newPos) {
+			log.Println("[Creature] spawning in walkable terrain in position %s, %s, %s", newPos.X, newPos.Y, newPos.Z)
+
 			return newPos
 		}
 	}
+	
+	log.Println("[Creature] spawning in walkable terrain in poisition %s, %s, %s", c.SpawnPoint.X, c.SpawnPoint.Y, c.SpawnPoint.Z)
 	return c.SpawnPoint
 }
 

@@ -13,6 +13,8 @@ type AttackTargetNode struct {
 }
 
 func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando AttackTargetNode", c.ID)
+
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}

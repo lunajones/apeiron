@@ -8,7 +8,7 @@ import (
 	"github.com/lunajones/apeiron/service/player"
 )
 
-func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creature) core.BehaviorNode {
+func BuildChineseSoldierBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
 	return &core.SequenceNode{
 		Children: []core.BehaviorNode{
 			&node.FleeIfLowHPNode{},
@@ -22,6 +22,7 @@ func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creatu
 			},
 			&node.AttackIfVulnerableNode{},
 			&node.RandomIdleNode{},
+			&node.RandomWanderNode{},
 		},
 	}
 }

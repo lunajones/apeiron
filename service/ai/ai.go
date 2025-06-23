@@ -9,11 +9,12 @@ import (
 
 var behaviorTrees map[creature.CreatureType]core.BehaviorNode
 
-func InitBehaviorTrees(players []player.Player, creatures []*creature.Creature) {
+func InitBehaviorTrees(players []*player.Player, creatures []*creature.Creature) {
 	behaviorTrees = map[creature.CreatureType]core.BehaviorNode{
 		creature.Soldier:        factory.BuildChineseSoldierBT(players, creatures),
 	}
 }
+
 
 func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*player.Player) {
 	tree, exists := behaviorTrees[c.Type]

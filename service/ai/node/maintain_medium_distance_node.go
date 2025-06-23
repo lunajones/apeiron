@@ -2,7 +2,6 @@ package node
 
 import (
 	"math"
-
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"

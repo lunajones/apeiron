@@ -20,7 +20,7 @@ var Zones []*Zone
 var creatureCounter int
 
 func Init() {
-	log.Println("[ZoneService] Inicializando zonas...")
+	log.Println("[Zone] initializing zones...")
 
 	zone1 := &Zone{ID: "zone_map1"}
 

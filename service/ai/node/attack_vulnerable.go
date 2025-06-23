@@ -13,6 +13,8 @@ type AttackIfVulnerableNode struct {
 }
 
 func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	log.Printf("[AI] %s executando AttackIfVulnerableNode", c.ID)
+
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}

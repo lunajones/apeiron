@@ -1,6 +1,12 @@
 package combat
 
+import (	
+	"log"
+)
+
 func InitSkills() {
+	
+	log.Println("[Skill Registry] initializing skills...")
 	SkillRegistry["SoldierSkill1"] = Skill{
 		Name:        "SoldierSkill1",
 		Action:      "Skill1",

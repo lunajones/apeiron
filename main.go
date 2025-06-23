@@ -11,9 +11,8 @@ import (
 )
 
 func main() {
-	log.Println("[Main] Inicializando sistema...")
+	log.Println("[Main] initializing system...")
 
-	// Inicializa as skills
 	combat.InitSkills()
 
 	// Inicializa as zonas e criaturas

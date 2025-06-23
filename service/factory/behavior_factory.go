@@ -22,11 +22,12 @@ func (a *behaviorTreeAdapter) Tick(c *creature.Creature, ctx interface{}) interf
 	return a.tree.Tick(c, realCtx)
 }
 
-func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creature) core.BehaviorNode {
+func BuildChineseSoldierBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
+
 	return mob.BuildChineseSoldierBT(players, creatures)
 }
 
-func CreateBehaviorTree(cType creature.CreatureType, players []player.Player, creatures []*creature.Creature) creature.BehaviorTree {
+func CreateBehaviorTree(cType creature.CreatureType, players []*player.Player, creatures []*creature.Creature) creature.BehaviorTree {
 	var tree core.BehaviorNode
 
 	switch cType {
