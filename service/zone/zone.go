@@ -16,6 +16,7 @@ type Zone struct {
 }
 
 var Zones []*zone.Zone
+var creatureCounter int
 
 func Init() {
 	log.Println("[ZoneService] Inicializando zonas...")
@@ -39,14 +40,16 @@ func TickAll() {
 	}
 }
 
-var creatureCounter int
+type BehaviorNode interface {
+	Tick(c *creature.Creature) interface{}
+}
 
 func generateUniqueCreatureID() string {
 	creatureCounter++
 	return fmt.Sprintf("creature_%d", creatureCounter)
 }
 
-func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Player) {
+func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Player, tree BehaviorNode) {
 	c := &creature.Creature{
 		ID:      generateUniqueCreatureID(),
 		Type:    cType,
@@ -59,12 +62,13 @@ func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Play
 	}
 
 	playerList := convertToAIPlayers(players)
-
-	c.BehaviorTree = behaviorfactory.CreateBehaviorTree(cType, playerList, z.Creatures)
+	c.BehaviorTree = tree
 
 	z.Creatures = append(z.Creatures, c)
 	log.Printf("[ZoneService] Criada criatura %s do tipo %s na zona %s", c.ID, cType, z.ID)
 }
+
+
 
 func convertToAIPlayers(players []*player.Player) []player.Player {
 	var aiPlayers []player.Player
