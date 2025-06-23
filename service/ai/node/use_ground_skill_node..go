@@ -2,7 +2,6 @@ package node
 
 import (
 	"log"
-	"math"
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/lib/combat"
@@ -29,27 +28,40 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core
 		return core.StatusFailure
 	}
 
-	// Verificar se tem players dentro do alcance da skill
+	// Verificar se tem players OU criaturas dentro do alcance da skill
 	var bestTargetPos position.Position
-	var playersInRange int
+	var targetsInRange int
 
+	// Verificar players
 	for _, p := range ctx.Players {
-		dist := distance(c.Position, p.Position)
+		dist := CalculateDistance(c.Position, p.Position)
 		if dist <= skill.Range {
-			playersInRange++
-			bestTargetPos = p.Position // Por simplicidade, usa o primeiro encontrado
+			targetsInRange++
+			bestTargetPos = p.Position
 		}
 	}
 
-	// Se nenhum player no range, não usa
-	if playersInRange == 0 {
-		log.Printf("[AI] %s não encontrou players próximos pra usar %s.", c.ID, n.SkillName)
+	// Verificar criaturas (exceto ele mesmo e mortos)
+	for _, other := range ctx.Creatures {
+		if other.ID == c.ID || !other.IsAlive {
+			continue
+		}
+		dist := CalculateDistance(c.Position, other.Position)
+		if dist <= skill.Range {
+			targetsInRange++
+			bestTargetPos = other.Position
+		}
+	}
+
+	// Se nenhum alvo no range, não usa
+	if targetsInRange == 0 {
+		log.Printf("[AI] %s não encontrou alvos próximos pra usar %s.", c.ID, n.SkillName)
 		return core.StatusFailure
 	}
 
 	// Se estiver faminto e for predador, pode usar mesmo em alvo único
 	hunger := c.GetNeedValue(creature.NeedHunger)
-	if playersInRange == 1 && !(hunger > 80 && c.HasTag(creature.TagPredator)) {
+	if targetsInRange == 1 && !(hunger > 80 && c.HasTag(creature.TagPredator)) {
 		log.Printf("[AI] %s preferiu guardar a skill %s para mais inimigos.", c.ID, n.SkillName)
 		return core.StatusFailure
 	}
@@ -59,11 +71,4 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core
 	combat.UseSkill(c, nil, bestTargetPos, n.SkillName, ctx.Creatures, ctx.Players)
 
 	return core.StatusSuccess
-}
-
-func distance(a, b position.Position) float64 {
-	dx := a.X - b.X
-	dy := a.Y - b.Y
-	dz := a.Z - b.Z
-	return math.Sqrt(dx*dx + dy*dy + dz*dz)
 }
