@@ -3,6 +3,8 @@ package zone
 import (
 	"fmt"
 	"log"
+	"github.com/lunajones/apeiron/service/ai/core"
+	
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
@@ -33,9 +35,11 @@ func Init() {
 	Zones = append(Zones, zone1)
 }
 
-func TickAll() {
-	for _, z := range Zones {
-		ai.TickZone(z)
+func (z *Zone) Tick(ctx core.AIContext) {
+	for _, c := range z.Creatures {
+		if c.IsAlive && c.BehaviorTree != nil {
+			c.BehaviorTree.Tick(c, ctx)
+		}
 	}
 }
 
