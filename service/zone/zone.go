@@ -52,7 +52,7 @@ func generateUniqueCreatureID() string {
 	return fmt.Sprintf("creature_%d", creatureCounter)
 }
 
-func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Player, tree BehaviorNode) {
+func (z *Zone) SpawnCreature(cType creature.CreatureType, players []*player.Player, tree creature.BehaviorTree) {
 	c := &creature.Creature{
 		ID:      generateUniqueCreatureID(),
 		Type:    cType,
