@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/service/ai"
-	"github.com/lunajones/apeiron/service/combat"
+	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/zone"
+	"github.com/lunajones/apeiron/service/world"
 )
 
 func main() {
@@ -15,13 +15,13 @@ func main() {
 
 	creature.Init()
 	combat.InitSkills()
-	ai.Init()
+	ai.InitBehaviorTrees()
 	zone.Init()
 
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		zone.TickAll()
+		world.TickAll()
 	}
 }

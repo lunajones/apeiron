@@ -1,7 +1,7 @@
 package world
 
 import (
-	"github.com/lunajones/apeiron/service/ai"
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/service/zone"
 )
