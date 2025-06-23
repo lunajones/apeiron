@@ -24,9 +24,9 @@ func Init() {
 
 	// Exemplo de criação de soldados e lobos
 	zone1.Creatures = append(zone1.Creatures, mob.NewChineseSoldier())
-	zone1.Creatures = append(zone1.Creatures, mob.NewChineseSoldier())
+	//zone1.Creatures = append(zone1.Creatures, mob.NewChineseSoldier())
 	zone1.Creatures = append(zone1.Creatures, mob.NewChineseWolf())
-	zone1.Creatures = append(zone1.Creatures, mob.NewChineseWolf())
+	//zone1.Creatures = append(zone1.Creatures, mob.NewChineseWolf())
 
 	Zones = append(Zones, zone1)
 

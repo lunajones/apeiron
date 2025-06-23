@@ -10,7 +10,7 @@ const (
     WorldBoss        CreatureLevel = "WorldBoss"
 )
 
-const AnyType CreatureType = "Any"
+const AnyType        CreatureType = "Any"
 
 type CreatureType string
 
