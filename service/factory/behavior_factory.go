@@ -22,17 +22,14 @@ func (a *behaviorTreeAdapter) Tick(c *creature.Creature, ctx interface{}) interf
 	return a.tree.Tick(c, realCtx)
 }
 
-func BuildChineseSoldierBT(players []*player.Player, creatures []*creature.Creature) core.BehaviorNode {
-
-	return mob.BuildChineseSoldierBT(players, creatures)
-}
-
 func CreateBehaviorTree(cType creature.CreatureType, players []*player.Player, creatures []*creature.Creature) creature.BehaviorTree {
 	var tree core.BehaviorNode
 
 	switch cType {
 	case creature.Soldier:
-		tree = BuildChineseSoldierBT(players, creatures)
+		tree = mob.BuildChineseSoldierBT(players, creatures)
+	case creature.Wolf:
+		tree = mob.BuildChineseWolfBT(players, creatures)
 	default:
 		log.Printf("[BehaviorFactory] Tipo de criatura %s sem BehaviorTree definida", cType)
 		return nil

@@ -30,7 +30,13 @@ func Init() {
 	c2 := creature.NewChineseSoldier()
 	c2.Position = position.Position{X: 2, Y: 0, Z: 0}
 
-	zone1.Creatures = append(zone1.Creatures, c1, c2)
+	c3 := creature.NewChineseWolf()
+	c3.Position = position.Position{X: 0, Y: 0, Z: 0}
+
+	c4 := creature.NewChineseWolf()
+	c4.Position = position.Position{X: 2, Y: 0, Z: 0}
+
+	zone1.Creatures = append(zone1.Creatures, c1, c2, c3, c4)
 
 	Zones = append(Zones, zone1)
 	

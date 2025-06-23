@@ -124,7 +124,7 @@ func Init() {
 }
 
 func NewChineseSoldier() *Creature {
-	log.Println("[Creature] Initializing creature...")
+	log.Println("[Creature] Initializing chinese soldier...")
 
 	c := &Creature{
 		ID:    lib.NewUUID(),
@@ -191,6 +191,28 @@ func NewChineseSoldier() *Creature {
 		},
 		Tags: []CreatureTag{TagHumanoid},
 	}
+	c.Position = c.GenerateSpawnPosition()
+	return c
+}
+
+func NewChineseWolf() *Creature {
+	log.Println("[Creature] Initializing chinese wolf...")
+	c:= &Creature{
+		ID:          "",
+		Type:        Wolf,
+		Level:       Normal,
+		IsAlive:     true,
+		HP:          100,
+		Tags:        []CreatureTag{TagAnimal, TagPredator},
+		Needs: []Need{
+			{Type: NeedHunger, Value: 50, Threshold: 70},
+			{Type: NeedThirst, Value: 50, Threshold: 70},
+			{Type: NeedSleep, Value: 50, Threshold: 70},
+		},
+		MentalState: MentalStateCalm,
+		CurrentRole: RoleNone,
+	}
+
 	c.Position = c.GenerateSpawnPosition()
 	return c
 }

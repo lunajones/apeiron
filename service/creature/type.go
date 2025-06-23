@@ -23,6 +23,7 @@ const (
 	Victim           CreatureType = "Victim"
 	Concubine        CreatureType = "Concubine"
 	Slave            CreatureType = "Slave"
+
 )
 
 type CreatureAction string
