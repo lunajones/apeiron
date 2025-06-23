@@ -1,78 +1,80 @@
 package mob
 
-import "github.com/lunajones/apeiron/lib/combat"
+import (
+	"log"
+	"time"
 
-func NewChineseWolf() *Creature {
+	"github.com/lunajones/apeiron/lib"
+	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/service/creature"
+)
+
+func NewChineseWolf() *creature.Creature {
 	log.Println("[Creature] Initializing chinese wolf...")
-	c:= &Creature{
-		ID:          lib.NewUUID(),
-		Type:        Wolf,
-		Level:       Normal,
-		HP:          100,
-		MaxHP: 100,
-		Actions: []CreatureAction{
-			ActionIdle,
-			ActionWalk,
-			ActionRun,
-			ActionParry,
-			ActionBlock,
-			ActionJump,
-			ActionSkill1,
-			ActionSkill2,
-			ActionSkill3,
-			ActionSkill4,
-			ActionSkill5,
-			ActionCombo1,
-			ActionCombo2,
-			ActionCombo3,
-			ActionDie,
+
+	c := &creature.Creature{
+		ID:    lib.NewUUID(),
+		Name:  "Chinese Wolf",
+		PrimaryType: creature.Wolf,
+		Types: []creature.CreatureType{creature.Wolf},
+		Level: creature.Normal,
+		HP:    80,
+		MaxHP: 80,
+		Actions: []creature.CreatureAction{
+			creature.ActionIdle,
+			creature.ActionWalk,
+			creature.ActionRun,
+			creature.ActionSkill1,
+			creature.ActionDie,
 		},
-		CurrentAction:           ActionIdle,
-		AIState:                 AIStateIdle,
+		CurrentAction:           creature.ActionIdle,
+		AIState:                 creature.AIStateIdle,
 		LastStateChange:         time.Now(),
-		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
+		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
 		IsAlive:                 true,
 		IsCorpse:                false,
-		RespawnTimeSec:          30,
+		RespawnTimeSec:          45,
 		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:             5.0,
-		FieldOfViewDegrees:      120,
-		VisionRange:             15,
-		HearingRange:            10,
+		SpawnRadius:             8.0,
+		FieldOfViewDegrees:      150,
+		VisionRange:             20,
+		HearingRange:            15,
 		IsBlind:                 false,
 		IsDeaf:                  false,
-		DetectionRadius:         10.0,
-		AttackRange:             2.5,
-		SkillCooldowns:          make(map[CreatureAction]time.Time),
+		DetectionRadius:         12.0,
+		AttackRange:             1.5,
+		SkillCooldowns:          make(map[creature.CreatureAction]time.Time),
 		AggroTable:              make(map[string]float64),
-		MoveSpeed:               3.5,
-		AttackSpeed:             1.2,
-		Faction:                 "Monsters",
+		MoveSpeed:               4.2,
+		AttackSpeed:             1.5,
+		Faction:                 "Wild",
 		IsHostile:               true,
-		MaxPosture:              100,
-		CurrentPosture:          100,
-		PostureRegenRate:        1.5,
-		PostureBreakDurationSec: 5,
-		// Atributos de combate
-		Strength:          20,
-		Dexterity:         10,
-		Intelligence:      5,
-		Focus:             8,
-		PhysicalDefense:   0.15,
-		MagicDefense:      0.05,
-		RangedDefense:     0.10,
-		ControlResistance: 0.1,
-		StatusResistance:  0.1,
-		CriticalResistance: 0.2,
-		CriticalChance:     0.05,
-		Tags:        []CreatureTag{TagAnimal, TagPredator},
-		Needs: []Need{
-			{Type: NeedHunger, Value: 50, Threshold: 70},
-			{Type: NeedThirst, Value: 50, Threshold: 70},
-			{Type: NeedSleep, Value: 50, Threshold: 70},
+		MaxPosture:              50,
+		CurrentPosture:          50,
+		PostureRegenRate:        1.2,
+		PostureBreakDurationSec: 3,
+		Strength:                15,
+		Dexterity:               20,
+		Intelligence:            3,
+		Focus:                   5,
+		PhysicalDefense:         0.08,
+		MagicDefense:            0.02,
+		RangedDefense:           0.05,
+		ControlResistance:       0.05,
+		StatusResistance:        0.05,
+		CriticalResistance:      0.1,
+		CriticalChance:          0.1,
+		Needs: []creature.Need{
+			{Type: creature.NeedHunger, Value: 0, Threshold: 50},
 		},
-		MentalState: MentalStateCalm,
-		CurrentRole: RoleNone,
+		Tags: []creature.CreatureTag{
+			creature.TagAnimal,
+			creature.TagPredator,
+		},
+		DamageWeakness: map[creature.DamageType]float32{
+			creature.Piercing: 1.0,
+			creature.Magic:    1.1,
+		},
 	}
 
 	c.Position = c.GenerateSpawnPosition()

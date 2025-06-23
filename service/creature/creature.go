@@ -22,6 +22,7 @@ type MemoryEvent struct {
 type Creature struct {
 	ID              string
 	Name            string
+	PrimaryType     CreatureType
 	Types           []CreatureType
 	Level           CreatureLevel
 	HP              int
@@ -130,7 +131,8 @@ func Init() {
 func exampleSpawn() *Creature {
 	c := &Creature{
 		ID:    lib.NewUUID(),
-		Types: []CreatureType{Soldier},
+		PrimaryType: Soldier,
+		Types:       []CreatureType{Soldier, Human},
 		Level: Normal,
 		HP:    100,
 		MaxHP: 100,

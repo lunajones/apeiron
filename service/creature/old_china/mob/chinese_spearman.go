@@ -7,7 +7,6 @@ import (
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/lib/combat"
 )
 
 func NewChineseSpearman() *creature.Creature {

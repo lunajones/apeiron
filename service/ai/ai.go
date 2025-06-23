@@ -1,26 +1,32 @@
 package ai
 
 import (
+	"log"
+
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/factory"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/factory"
 	"github.com/lunajones/apeiron/service/player"
 )
 
-var behaviorTrees map[creature.CreatureType]creature.BehaviorTree
+var behaviorTrees map[string]creature.BehaviorTree
 
 func InitBehaviorTrees(players []*player.Player, creatures []*creature.Creature) {
-	behaviorTrees = make(map[creature.CreatureType]creature.BehaviorTree)
+	behaviorTrees = make(map[string]creature.BehaviorTree)
 
 	for _, c := range creatures {
-		tree := factory.CreateBehaviorTree(c.Type, players, creatures)
-		c.BehaviorTree = tree
+		tree := factory.CreateBehaviorTree(c.Types, players, creatures)
+		if tree == nil {
+			log.Printf("[AI] Nenhuma BehaviorTree atribuída para criatura %s (tipos: %v)", c.ID, c.Types)
+			continue
+		}
+		behaviorTrees[c.ID] = tree
 	}
 }
 
 func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*player.Player) {
-	tree, exists := behaviorTrees[c.Type]
-	if !exists {
+	tree, exists := behaviorTrees[c.ID]
+	if !exists || tree == nil {
 		return
 	}
 
@@ -30,9 +36,4 @@ func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*
 	}
 
 	tree.Tick(c, ctx)
-}
-
-func GetBehaviorTreeForType(cType creature.CreatureType) (creature.BehaviorTree, bool) {
-	tree, exists := behaviorTrees[cType]
-	return tree, exists
 }

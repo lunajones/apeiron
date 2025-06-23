@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/service/creature"
@@ -16,6 +15,7 @@ func NewChineseSoldier() *creature.Creature {
 	c := &creature.Creature{
 		ID:    lib.NewUUID(),
 		Name:  "Chinese Soldier",
+		PrimaryType: creature.Human,
 		Types: []creature.CreatureType{creature.Human, creature.Soldier},
 		HP:    100,
 		MaxHP: 100,

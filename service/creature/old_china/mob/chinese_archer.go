@@ -1,7 +1,6 @@
 package mob
 
 import (
-	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 )
 

@@ -9,7 +9,6 @@ import (
 	"github.com/lunajones/apeiron/service/player"
 )
 
-// Adapter para transformar um core.BehaviorNode em creature.BehaviorTree
 type behaviorTreeAdapter struct {
 	tree core.BehaviorNode
 }
@@ -22,19 +21,30 @@ func (a *behaviorTreeAdapter) Tick(c *creature.Creature, ctx interface{}) interf
 	return a.tree.Tick(c, realCtx)
 }
 
-func CreateBehaviorTree(cType creature.CreatureType, players []*player.Player, creatures []*creature.Creature) creature.BehaviorTree {
+func CreateBehaviorTree(types []creature.CreatureType, players []*player.Player, creatures []*creature.Creature) creature.BehaviorTree {
 	var tree core.BehaviorNode
 
-	switch cType {
-	case creature.Soldier:
-		tree = mob.BuildChineseSoldierBT(players, creatures)
-	case creature.Wolf:
-		tree = mob.BuildChineseWolfBT(players, creatures)
-	default:
-		log.Printf("[BehaviorFactory] Tipo de criatura %s sem BehaviorTree definida", cType)
+	for _, t := range types {
+		switch t {
+		case creature.Soldier:
+			tree = mob.BuildChineseSoldierBT(players, creatures)
+			break
+		case creature.Wolf:
+			tree = mob.BuildChineseWolfBT(players, creatures)
+			break
+		case creature.Human:
+			tree = mob.BuildChineseSoldierBT(players, creatures)
+			break
+		}
+		if tree != nil {
+			break
+		}
+	}
+
+	if tree == nil {
+		log.Printf("[BehaviorFactory] Nenhuma BehaviorTree encontrada para tipos %v", types)
 		return nil
 	}
 
-	// Retorna o adapter, já no formato aceito por creature.BehaviorTree
 	return &behaviorTreeAdapter{tree: tree}
 }
