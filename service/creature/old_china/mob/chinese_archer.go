@@ -23,9 +23,9 @@ func NewChineseArcher(id string) *creature.Creature {
 			creature.ActionCombo1,
 			creature.ActionDie,
 		},
-		DamageWeakness: map[combat.DamageType]float32{
-			combat.Piercing: 1.2,
-			combat.Magic:    0.8,
+		DamageWeakness: map[creature.DamageType]float32{
+			creature.Piercing: 1.2,
+			creature.Magic:    0.8,
 		},
 		IsAlive:        true,
 		RespawnTimeSec: 60,

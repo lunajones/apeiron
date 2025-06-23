@@ -111,6 +111,8 @@ type Creature struct {
 	Memory      []MemoryEvent
 	MentalState MentalState
 
+	// AI Behavior decision fields
+	DamageWeakness map[DamageType]float32
 	
 }
 

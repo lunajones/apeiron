@@ -1,4 +1,4 @@
-package combat
+package creature
 
 type DamageType string
 
