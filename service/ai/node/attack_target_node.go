@@ -2,11 +2,9 @@ package node
 
 import (
 	"log"
-	"math"
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/lib/combat"
-	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
@@ -24,7 +22,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.B
 		return core.StatusFailure
 	}
 
-	distance := distance(c.Position, target.Position)
+	distance := calculateDistance(c.Position, target.Position)
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
 		log.Printf("[AI] Skill %s não encontrada.", n.SkillName)
@@ -38,11 +36,4 @@ func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.B
 
 	combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
 	return core.StatusSuccess
-}
-
-func distance(a, b position.Position) float64 {
-	dx := a.X - b.X
-	dy := a.Y - b.Y
-	dz := a.Z - b.Z
-	return math.Sqrt(dx*dx + dy*dy + dz*dz)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillName string, creatures []*creature.Creature, players []player.Player) {
+func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillName string, creatures []*creature.Creature, players []*player.Player) {
 	skillData, exists := SkillRegistry[skillName]
 	if !exists {
 		log.Printf("[SkillExecutor] Skill %s não encontrada", skillName)
@@ -65,7 +65,7 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 	}
 }
 
-func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, skillData Skill, creatures []*creature.Creature, players []player.Player) {
+func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, skillData Skill, creatures []*creature.Creature, players []*player.Player) {
 	for _, c := range creatures {
 		if !c.IsAlive {
 			continue
