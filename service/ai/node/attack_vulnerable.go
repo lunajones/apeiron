@@ -8,11 +8,11 @@ import (
 	"github.com/lunajones/apeiron/service/creature"
 )
 
-type AttackIfEnemyVulnerableNode struct {
+type AttackIfVulnerableNode struct {
 	SkillName string
 }
 
-func (n *AttackIfEnemyVulnerableNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}

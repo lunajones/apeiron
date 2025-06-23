@@ -27,8 +27,8 @@ func BuildChineseSpearmanBT(players []player.Player, creatures []*creature.Creat
 }
 
 
-func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature) core.BehaviorStatus {
-	for _, p := range n.Players {
+func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	for _, p := range ctx.Players {
 		dx := p.Position.X - c.Position.X
 		dz := p.Position.Z - c.Position.Z
 		distance := math.Sqrt(dx*dx + dz*dz)

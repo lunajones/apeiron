@@ -16,7 +16,6 @@ func BuildChineseSoldierBT(players []player.Player, creatures []*creature.Creatu
 			&node.AttackTargetNode{SkillName: "SoldierSkill1"},
 			&node.UseGroundSkillNode{
 				SkillName: "SoldierGroundSlam",
-				Players:   players,
 			},
 			&node.AttackTargetNode{
 				SkillName: "SoldierSkill1",
