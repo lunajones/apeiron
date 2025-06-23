@@ -11,6 +11,7 @@ import (
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/lib/position"
 
+
 )
 
 type Creature struct {
@@ -93,9 +94,12 @@ type Creature struct {
 	PostureBreakDurationSec int
 
 	// AI Behavior Tree
-	BehaviorTree interface {
-		Tick(c *Creature)
-	}
+	BehaviorTree    BehaviorTree
+	
+}
+
+type BehaviorTree interface {
+	Tick(c *Creature, ctx interface{}) interface{}
 }
 
 var creatures []*Creature
