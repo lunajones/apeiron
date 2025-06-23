@@ -1,24 +1,21 @@
 package world
 
 import (
-	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/zone"
 	"github.com/lunajones/apeiron/service/ai"
+	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/service/zone"
 )
 
-func FindCreatureByID(id string) *creature.Creature {
-	for _, z := range zone.Zones {
-		for _, c := range z.Creatures {
-			if c.ID == id {
-				return c
-			}
-		}
-	}
-	return nil
-}
+var Players []*player.Player
 
 func TickAll() {
 	for _, z := range zone.Zones {
-		ai.TickZone(z)
+		for _, c := range z.Creatures {
+			if c.IsAlive {
+				ai.ProcessAI(c, z.Creatures, Players)
+				c.TickEffects()
+				c.TickPosture()
+			}
+		}
 	}
 }

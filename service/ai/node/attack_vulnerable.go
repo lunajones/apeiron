@@ -2,29 +2,53 @@ package node
 
 import (
 	"log"
+	"math"
 
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/combat"
+	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/world"
 )
 
-type AttackIfVulnerableNode struct{}
+type AttackIfEnemyVulnerableNode struct {
+	SkillName string
+}
 
-func (n *AttackIfVulnerableNode) Tick(c *creature.Creature) core.BehaviorStatus {
+func (n *AttackIfEnemyVulnerableNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}
 
-	target := world.FindCreatureByID(c.TargetCreatureID)
+	target := creature.FindByID(ctx.Creatures, c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
 		return core.StatusFailure
 	}
 
-	if target.IsPostureBroken {
-		c.SetAction(creature.ActionSkill3) // Exemplo: skill mais pesada
-		log.Printf("[AI] Creature %s atacando alvo vulnerável %s", c.ID, target.ID)
-		return core.StatusSuccess
+	if target.HP > 30 {
+		log.Printf("[AI] Target %s com HP alto demais para vulnerável.", target.ID)
+		return core.StatusFailure
 	}
 
-	return core.StatusFailure
+	distance := distance(c.Position, target.Position)
+	skill, exists := combat.SkillRegistry[n.SkillName]
+	if !exists {
+		log.Printf("[AI] Skill %s não encontrada.", n.SkillName)
+		return core.StatusFailure
+	}
+
+	if distance > skill.Range {
+		log.Printf("[AI] Target %s fora de alcance de %s.", target.ID, n.SkillName)
+		return core.StatusFailure
+	}
+
+	combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
+	log.Printf("[AI] %s executou ataque vulnerável em %s com %s", c.ID, target.ID, n.SkillName)
+	return core.StatusSuccess
+}
+
+func distance(a, b position.Position) float64 {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	dz := a.Z - b.Z
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
 }

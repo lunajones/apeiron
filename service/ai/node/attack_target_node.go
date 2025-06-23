@@ -8,19 +8,18 @@ import (
 	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/world"
 )
 
 type AttackTargetNode struct {
 	SkillName string
 }
 
-func (n *AttackTargetNode) Tick(c *creature.Creature) core.BehaviorStatus {
+func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
 	if c.TargetCreatureID == "" {
 		return core.StatusFailure
 	}
 
-	target := world.FindCreatureByID(c.TargetCreatureID)
+	target := creature.FindByID(ctx.Creatures, c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
 		return core.StatusFailure
 	}
@@ -37,7 +36,7 @@ func (n *AttackTargetNode) Tick(c *creature.Creature) core.BehaviorStatus {
 		return core.StatusFailure
 	}
 
-	combat.UseSkill(c, target, target.Position, n.SkillName, nil, nil)
+	combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
 	return core.StatusSuccess
 }
 

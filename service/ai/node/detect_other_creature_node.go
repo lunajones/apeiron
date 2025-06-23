@@ -3,23 +3,20 @@ package node
 import (
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/world"
 )
 
 type DetectOtherCreatureNode struct{}
 
-func (n *DetectOtherCreatureNode) Tick(c *creature.Creature) core.BehaviorStatus {
-	for _, zone := range world.Zones {
-		for _, other := range zone.Creatures {
-			if other.ID == c.ID || !other.IsAlive {
-				continue
-			}
+func (n *DetectOtherCreatureNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	for _, other := range ctx.Creatures {
+		if other.ID == c.ID || !other.IsAlive {
+			continue
+		}
 
-			if creature.CanSeeOtherCreatures(c, []*creature.Creature{other}) || creature.CanHearOtherCreatures(c, []*creature.Creature{other}) {
-				c.TargetCreatureID = other.ID
-				c.ChangeAIState(creature.AIStateAlert)
-				return core.StatusSuccess
-			}
+		if creature.CanSeeOtherCreatures(c, []*creature.Creature{other}) || creature.CanHearOtherCreatures(c, []*creature.Creature{other}) {
+			c.TargetCreatureID = other.ID
+			c.ChangeAIState(creature.AIStateAlert)
+			return core.StatusSuccess
 		}
 	}
 	return core.StatusFailure

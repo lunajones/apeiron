@@ -1,39 +1,39 @@
 package node
 
 import (
-	"log"
-	"math/rand"
+	"math"
 
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/lib/combat"
+	"github.com/lunajones/apeiron/lib/position"
 )
 
 type UseGroundSkillNode struct {
 	SkillName string
-	Players   []player.Player
 }
 
-func (n *UseGroundSkillNode) Tick(c *creature.Creature) core.BehaviorStatus {
+func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+	if len(ctx.Players) == 0 {
+		return core.StatusFailure
+	}
+	targetPlayer := ctx.Players[0] // Exemplo: sempre escolhe o primeiro jogador da lista
+	distanceToTarget := distance(c.Position, targetPlayer.Position)
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
-		log.Printf("[AI] Ground skill %s não encontrada.", n.SkillName)
 		return core.StatusFailure
 	}
-
-	if len(n.Players) == 0 {
-		log.Printf("[AI] Nenhum player disponível como target de skill ground.")
+	if distanceToTarget > skill.Range {
 		return core.StatusFailure
 	}
-
-	targetPlayer := n.Players[rand.Intn(len(n.Players))]
-	targetPos := targetPlayer.Position
-
-	log.Printf("[AI] Skill alvo é %s, tipo: %s", skill.Name, skill.SkillType)
-	
-	combat.UseSkill(c, nil, targetPos, n.SkillName, nil, nil)
-	log.Printf("[AI] Creature %s usou %s em posição (%f, %f, %f)", c.ID, n.SkillName, targetPos.X, targetPos.Y, targetPos.Z)
-
+	combat.UseSkill(c, nil, targetPlayer.Position, n.SkillName, ctx.Creatures, ctx.Players)
 	return core.StatusSuccess
+}
+
+func distance(a, b position.Position) float64 {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	dz := a.Z - b.Z
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
 }
