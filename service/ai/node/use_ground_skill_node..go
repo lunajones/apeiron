@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/lib/position"
@@ -13,7 +14,7 @@ type UseGroundSkillNode struct {
 	SkillName string
 }
 
-func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando UseGroundSkillNode", c.ID)
 
 	skill, exists := combat.SkillRegistry[n.SkillName]

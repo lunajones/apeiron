@@ -6,6 +6,7 @@ import (
 
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 )
@@ -14,13 +15,21 @@ func NewChineseWolf() *creature.Creature {
 	log.Println("[Creature] Initializing chinese wolf...")
 
 	c := &creature.Creature{
-		ID:    lib.NewUUID(),
-		Name:  "Chinese Wolf",
+		Creature: model.Creature{
+			ID:             lib.NewUUID(),
+			Name:           "Chinese Wolf",
+			HP:             80,
+			MaxHP:          80,
+			IsAlive:        true,
+			IsCorpse:       false,
+			RespawnTimeSec: 25,
+			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
+			SpawnRadius:    4.0,
+			Faction:        "Beasts",
+			IsHostile:      true,
+		},
 		PrimaryType: creature.Wolf,
-		Types: []creature.CreatureType{creature.Wolf},
-		Level: creature.Normal,
-		HP:    80,
-		MaxHP: 80,
+		Types:       []creature.CreatureType{creature.Wolf},
 		Actions: []creature.CreatureAction{
 			creature.ActionIdle,
 			creature.ActionWalk,
@@ -32,52 +41,39 @@ func NewChineseWolf() *creature.Creature {
 		AIState:                 creature.AIStateIdle,
 		LastStateChange:         time.Now(),
 		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
-		IsAlive:                 true,
-		IsCorpse:                false,
-		RespawnTimeSec:          45,
-		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:             8.0,
-		FieldOfViewDegrees:      150,
-		VisionRange:             20,
-		HearingRange:            15,
+		FieldOfViewDegrees:      100,
+		VisionRange:             12,
+		HearingRange:            12,
 		IsBlind:                 false,
 		IsDeaf:                  false,
-		DetectionRadius:         12.0,
+		DetectionRadius:         8.0,
 		AttackRange:             1.5,
 		SkillCooldowns:          make(map[creature.CreatureAction]time.Time),
 		AggroTable:              make(map[string]*aggro.AggroEntry),
-		MoveSpeed:               4.2,
-		AttackSpeed:             1.5,
-		Faction:                 "Wild",
-		IsHostile:               true,
-		MaxPosture:              50,
-		CurrentPosture:          50,
+		MoveSpeed:               4.5,
+		AttackSpeed:             1.0,
+		MaxPosture:              80,
+		CurrentPosture:          80,
 		PostureRegenRate:        1.2,
-		PostureBreakDurationSec: 3,
+		PostureBreakDurationSec: 4,
 		Strength:                15,
 		Dexterity:               20,
 		Intelligence:            3,
-		Focus:                   5,
-		PhysicalDefense:         0.08,
+		Focus:                   6,
+		PhysicalDefense:         0.10,
 		MagicDefense:            0.02,
 		RangedDefense:           0.05,
 		ControlResistance:       0.05,
 		StatusResistance:        0.05,
 		CriticalResistance:      0.1,
-		CriticalChance:          0.1,
+		CriticalChance:          0.03,
 		Needs: []creature.Need{
-			{Type: creature.NeedHunger, Value: 0, Threshold: 50},
+			{Type: creature.NeedHunger, Value: 0, Threshold: 40},
 		},
 		Tags: []creature.CreatureTag{
-			creature.TagAnimal,
 			creature.TagPredator,
 		},
-		DamageWeakness: map[creature.DamageType]float32{
-			creature.Piercing: 1.0,
-			creature.Magic:    1.1,
-		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Exemplo: olhando pro eixo X positivo
-
+		FacingDirection: position.Vector2D{X: 1, Y: 0},
 	}
 
 	c.Position = c.GenerateSpawnPosition()

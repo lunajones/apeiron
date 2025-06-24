@@ -4,11 +4,12 @@ import (
 	"log"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/lib/ai_context"
 )
 
 type FeedOnCorpseNode struct{}
 
-func (n *FeedOnCorpseNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *FeedOnCorpseNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	if !c.HasTag(creature.TagPredator) {
 		return core.StatusFailure
 	}

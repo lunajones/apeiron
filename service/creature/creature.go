@@ -410,7 +410,7 @@ func (c *Creature) WasRecentlyAttacked() bool {
 }
 
 // --- Função FindByID ---
-func FindByID(creatures []*Creature, id string) *Creature {
+func FindByID(creatures []*model.Creature, id string) *model.Creature {
 	for _, c := range creatures {
 		if c.ID == id {
 			return c

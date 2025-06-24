@@ -14,7 +14,7 @@ import (
 func NewTerrifiedConcubine() *creature.Creature {
 	log.Println("[Creature] Initializing terrified concubine...")
 
-	return &creature.Creature{
+	c := &creature.Creature{
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Terrified Concubine",
@@ -24,12 +24,9 @@ func NewTerrifiedConcubine() *creature.Creature {
 			RespawnTimeSec: 120,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
 			SpawnRadius:    3.0,
-			Position:       position.Position{},
 		},
-
-		PrimaryType:     creature.Human,
-		Types:           []creature.CreatureType{creature.Human},
-		Level:           creature.Normal,
+		Types:       []creature.CreatureType{creature.Human},
+		Level:       creature.Normal,
 		Actions: []creature.CreatureAction{
 			creature.ActionIdle,
 			creature.ActionWalk,
@@ -40,7 +37,6 @@ func NewTerrifiedConcubine() *creature.Creature {
 		AIState:                 creature.AIStateIdle,
 		LastStateChange:         time.Now(),
 		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
-		IsCorpse:                false,
 		FieldOfViewDegrees:      90,
 		VisionRange:             10,
 		HearingRange:            8,
@@ -52,8 +48,6 @@ func NewTerrifiedConcubine() *creature.Creature {
 		AggroTable:              make(map[string]*aggro.AggroEntry),
 		MoveSpeed:               2.5,
 		AttackSpeed:             0,
-		Faction:                 "Civilians",
-		IsHostile:               false,
 		MaxPosture:              50,
 		CurrentPosture:          50,
 		PostureRegenRate:        1.0,
@@ -80,6 +74,10 @@ func NewTerrifiedConcubine() *creature.Creature {
 			creature.Piercing: 1.0,
 			creature.Magic:    1.0,
 		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0},
+		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Aqui fora!
+
 	}
+
+	c.Position = c.GenerateSpawnPosition()
+	return c
 }

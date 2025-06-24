@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
 type RandomIdleNode struct{}
 
-func (n *RandomIdleNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *RandomIdleNode) Tick(c *creature.Creature, cctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando RandomIdleNode", c.ID)
 
 	// Checa necessidades básicas

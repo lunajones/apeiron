@@ -4,6 +4,7 @@ import (
 	"math"
 	"log"
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/player"
 )
@@ -12,7 +13,7 @@ type MaintainMediumDistanceNode struct {
 	Players []player.Player
 }
 
-func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando MaintainMediumDistanceNode", c.ID)
 
 	for _, p := range ctx.Players {

@@ -6,11 +6,12 @@ import (
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/lib/ai_context"
 )
 
 type FleeIfLowHPNode struct{}
 
-func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando FleeIfLowHPNode", c.ID)
 
 	hpThreshold := 30

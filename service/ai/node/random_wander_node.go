@@ -7,12 +7,13 @@ import (
 
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
 type RandomWanderNode struct{}
 
-func (n *RandomWanderNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *RandomWanderNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando RandomWanderNode", c.ID)
 
 	rand.Seed(time.Now().UnixNano())

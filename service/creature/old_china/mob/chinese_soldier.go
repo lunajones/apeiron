@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
-	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 )
@@ -14,22 +14,22 @@ import (
 func NewChineseSoldier() *creature.Creature {
 	log.Println("[Creature] Initializing chinese soldier...")
 
-	return &creature.Creature{
+	c := &creature.Creature{
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Chinese Soldier",
 			HP:             100,
 			MaxHP:          100,
 			IsAlive:        true,
+			IsCorpse:       false,
 			RespawnTimeSec: 30,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
 			SpawnRadius:    5.0,
-			Position:       position.Position{},
+			Faction:        "Monsters",
+			IsHostile:      true,
 		},
-
-		PrimaryType:     creature.Human,
-		Types:           []creature.CreatureType{creature.Human, creature.Soldier},
-		Level:           creature.Normal,
+		PrimaryType: creature.Human,
+		Types:       []creature.CreatureType{creature.Human, creature.Soldier},
 		Actions: []creature.CreatureAction{
 			creature.ActionIdle,
 			creature.ActionWalk,
@@ -51,7 +51,6 @@ func NewChineseSoldier() *creature.Creature {
 		AIState:                 creature.AIStateIdle,
 		LastStateChange:         time.Now(),
 		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
-		IsCorpse:                false,
 		FieldOfViewDegrees:      120,
 		VisionRange:             15,
 		HearingRange:            10,
@@ -63,8 +62,6 @@ func NewChineseSoldier() *creature.Creature {
 		AggroTable:              make(map[string]*aggro.AggroEntry),
 		MoveSpeed:               3.5,
 		AttackSpeed:             1.2,
-		Faction:                 "Monsters",
-		IsHostile:               true,
 		MaxPosture:              100,
 		CurrentPosture:          100,
 		PostureRegenRate:        1.5,
@@ -86,6 +83,9 @@ func NewChineseSoldier() *creature.Creature {
 		Tags: []creature.CreatureTag{
 			creature.TagHumanoid,
 		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0},
+		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Exemplo: olhando pro eixo X positivo
 	}
+
+	c.Position = c.GenerateSpawnPosition()
+	return c
 }

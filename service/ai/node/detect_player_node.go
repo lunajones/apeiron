@@ -6,6 +6,7 @@ import (
 
 
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
@@ -13,7 +14,7 @@ type DetectPlayerNode struct {
 	Players []*player.Player
 }
 
-func (n *DetectPlayerNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *DetectPlayerNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando DetectPlayerNode", c.ID)
 	for _, p := range ctx.Players {
 		// Se a criatura estiver com medo, ela evita até olhar

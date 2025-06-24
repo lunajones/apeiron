@@ -3,8 +3,10 @@ package node
 import (
 	"log"
 
-	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/lib/combat"
+	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
@@ -12,7 +14,7 @@ type AttackTargetNode struct {
 	SkillName string
 }
 
-func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.BehaviorStatus {
+func (n *AttackTargetNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando AttackTargetNode", c.ID)
 
 	if c.TargetCreatureID == "" {
@@ -32,19 +34,20 @@ func (n *AttackTargetNode) Tick(c *creature.Creature, ctx core.AIContext) core.B
 		return core.StatusFailure
 	}
 
-	// Regra 2: Analisar fome extrema (Exemplo: se a fome está acima de 90, ignora o medo)
+	// Regra 2: Analisar fome extrema
 	hunger := c.GetNeedValue(creature.NeedHunger)
 	if hunger > 90 {
 		log.Printf("[AI] %s está faminto demais, vai atacar de qualquer jeito!", c.ID)
 	} else {
-	// Regra 3: Se for animal, só atacar se o alvo for "prey"
-	if c.HasTag(creature.TagAnimal) && !target.HasTag(creature.TagPrey) {
-		log.Printf("[AI] %s é um animal e o alvo %s não é presa. Abortando ataque.", c.ID, target.ID)
-		return core.StatusFailure
+		// Regra 3: Se for animal, só atacar se o alvo for "prey"
+		if c.HasTag(creature.TagAnimal) && !target.HasTag(creature.TagPrey) {
+			log.Printf("[AI] %s é um animal e o alvo %s não é presa. Abortando ataque.", c.ID, target.ID)
+			return core.StatusFailure
+		}
 	}
-}
 
-	distance := CalculateDistance(c.Position, target.Position)
+	distance := position.CalculateDistance(c.Position, target.Position)
+
 	skill, exists := combat.SkillRegistry[n.SkillName]
 	if !exists {
 		log.Printf("[AI] Skill %s não encontrada para %s.", n.SkillName, c.ID)
