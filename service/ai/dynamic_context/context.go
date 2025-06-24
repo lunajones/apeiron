@@ -1,4 +1,4 @@
-package context
+package dynamic_context
 
 import (
 	"github.com/lunajones/apeiron/service/creature"
