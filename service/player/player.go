@@ -1,7 +1,7 @@
 package player
 
 import (
-	model "github.com/lunajones/apeiron/lib/model/player"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
 )
 

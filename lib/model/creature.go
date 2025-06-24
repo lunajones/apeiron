@@ -1,7 +1,9 @@
-package creature
+package model
 
-import "github.com/lunajones/apeiron/lib/position"
-
+import (
+	"time"
+	"github.com/lunajones/apeiron/lib/position"
+)
 type Creature struct {
 	ID               string
 	Name             string

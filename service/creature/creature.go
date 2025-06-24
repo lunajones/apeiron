@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 	"math"
-	model "github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/player"
@@ -111,12 +111,21 @@ func Init() {
 
 func exampleSpawn() *Creature {
 	c := &Creature{
-		ID:    lib.NewUUID(),
-		PrimaryType: Soldier,
-		Types:       []CreatureType{Soldier, Human},
-		Level: Normal,
-		HP:    100,
-		MaxHP: 100,
+		Creature: model.Creature{
+			ID:             lib.NewUUID(),
+			HP:             100,
+			MaxHP:          100,
+			IsAlive:        true,
+			RespawnTimeSec: 30,
+			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
+			SpawnRadius:    5.0,
+			Faction:        "Monsters",
+			IsHostile:      true,
+		},
+
+		PrimaryType:     Soldier,
+		Types:           []CreatureType{Soldier, Human},
+		Level:           Normal,
 		Actions: []CreatureAction{
 			ActionIdle,
 			ActionWalk,
@@ -138,39 +147,30 @@ func exampleSpawn() *Creature {
 		AIState:                 AIStateIdle,
 		LastStateChange:         time.Now(),
 		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
-		IsAlive:                 true,
-		RespawnTimeSec:          30,
-		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:             5.0,
+		Strength:                20,
+		Dexterity:               10,
+		Intelligence:            5,
+		Focus:                   8,
+		PhysicalDefense:         0.15,
+		MagicDefense:            0.05,
+		RangedDefense:           0.10,
+		ControlResistance:       0.1,
+		StatusResistance:        0.1,
+		CriticalResistance:      0.2,
+		CriticalChance:          0.05,
 		FieldOfViewDegrees:      120,
 		VisionRange:             15,
 		HearingRange:            10,
-		IsBlind:                 false,
-		IsDeaf:                  false,
 		DetectionRadius:         10.0,
 		AttackRange:             2.5,
 		SkillCooldowns:          make(map[CreatureAction]time.Time),
 		AggroTable:              make(map[string]*aggro.AggroEntry),
 		MoveSpeed:               3.5,
 		AttackSpeed:             1.2,
-		Faction:                 "Monsters",
-		IsHostile:               true,
 		MaxPosture:              100,
 		CurrentPosture:          100,
 		PostureRegenRate:        1.5,
 		PostureBreakDurationSec: 5,
-		// Atributos de combate
-		Strength:          20,
-		Dexterity:         10,
-		Intelligence:      5,
-		Focus:             8,
-		PhysicalDefense:   0.15,
-		MagicDefense:      0.05,
-		RangedDefense:     0.10,
-		ControlResistance: 0.1,
-		StatusResistance:  0.1,
-		CriticalResistance: 0.2,
-		CriticalChance:     0.05,
 		Needs: []Need{
 			{Type: NeedHunger, Value: 0, Threshold: 50},
 		},
@@ -179,6 +179,8 @@ func exampleSpawn() *Creature {
 	c.Position = c.GenerateSpawnPosition()
 	return c
 }
+
+
 
 func (c *Creature) GenerateSpawnPosition() position.Position {
 	for attempts := 0; attempts < 10; attempts++ {
@@ -206,44 +208,35 @@ func IsTerrainWalkable(pos position.Position) bool {
 	return true
 }
 
-func (c *Creature) Tick(ctx interface{}) {
+func (c *Creature) Tick(ctx ai_context.AIContext) {
 	c.TickEffects()
 	c.TickPosture()
 
-	// Faz o type assertion pro contexto
-	aiCtx, ok := ctx.(ai_context.CreatureContext)
-	if !ok {
-		log.Printf("[AI] Contexto inválido dentro de Tick() para %s", c.ID)
-		return
-	}
-
 	switch c.AIState {
 	case AIStateIdle:
-		// Chance de entrar em alerta
+		// Exemplo simples: chance de entrar em alerta
 		if rand.Float32() < 0.1 {
 			c.ChangeAIState(AIStateAlert)
 		}
 
 	case AIStateAlert:
-		for _, p := range aiCtx.GetPlayers() {
-			playerObj, ok := p.(*player.Player)
-			if !ok {
-				continue
-			}
-
-			if CanSeePlayer(c, []*player.Player{playerObj}) || CanHearPlayer(c, []*player.Player{playerObj}) {
-				c.AddThreat(playerObj.ID, 10, "PlayerDetected", "VisionOrSound")
-				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, playerObj.ID)
+		// Procura players na visão ou audição
+		for _, p := range ctx.GetPlayers() {
+			if CanSeePlayer(c, []*player.Player{p}) || CanHearPlayer(c, []*player.Player{p}) {
+				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
+				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
 				c.ChangeAIState(AIStateChasing)
 				break
 			}
 		}
 
+		// Se depois de 2 segundos não viu ninguém, volta pro Idle
 		if time.Since(c.LastStateChange) > 2*time.Second {
 			c.ChangeAIState(AIStateIdle)
 		}
 
 	case AIStateChasing:
+		// Pega o alvo de maior threat
 		targetID := c.GetHighestThreatTarget()
 		if targetID == "" {
 			log.Printf("[AI] %s sem alvo de threat, voltando pra Idle", c.ID)
@@ -251,7 +244,7 @@ func (c *Creature) Tick(ctx interface{}) {
 			return
 		}
 
-		target := findTargetByID(targetID, aiCtx.GetCreatures(), aiCtx.GetPlayers())
+		target := findTargetByID(targetID, ctx.GetCreatures(), ctx.GetPlayers())
 		if target == nil {
 			log.Printf("[AI] %s: alvo %s não encontrado, limpando aggro", c.ID, targetID)
 			c.ClearAggro()
@@ -259,6 +252,7 @@ func (c *Creature) Tick(ctx interface{}) {
 			return
 		}
 
+		// Persegue o alvo
 		c.MoveTowards(target.GetPosition(), c.MoveSpeed)
 
 	case AIStateAttack:
@@ -267,7 +261,7 @@ func (c *Creature) Tick(ctx interface{}) {
 		c.ChangeAIState(AIStateIdle)
 
 	case AIStateDead:
-		// Morto, não faz nada
+		// Nada a fazer
 	}
 }
 
