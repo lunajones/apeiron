@@ -4,6 +4,7 @@ import (
 	"time"
 	"github.com/lunajones/apeiron/lib/position"
 )
+
 type Creature struct {
 	ID               string
 	Name             string
@@ -21,4 +22,12 @@ type Creature struct {
 	TargetPlayerID   string
 	Faction          string
 	IsHostile        bool
+}
+
+func (c *Creature) GetID() string {
+	return c.ID
+}
+
+func (c *Creature) GetPosition() position.Position {
+	return c.Position
 }

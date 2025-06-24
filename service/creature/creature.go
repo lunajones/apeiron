@@ -20,11 +20,6 @@ type MemoryEvent struct {
 	Timestamp   time.Time
 }
 
-type Targetable interface {
-	GetPosition() position.Position
-	GetID() string
-}
-
 type Creature struct {
 	model.Creature  // Embutindo o modelo base
 
@@ -444,7 +439,7 @@ func CanSeePlayer(c *Creature, players []*model.Player) bool {
 	for _, p := range players {
 		toPlayer := position.Vector2D{
 			X: p.Position.X - c.Position.X,
-			Y: p.Position.Z - c.Position.Z, // Plano XZ
+			Y: p.Position.Z - c.Position.Z,
 		}
 
 		distance := toPlayer.Magnitude()
@@ -476,7 +471,6 @@ func CanHearPlayer(c *Creature, players []*model.Player) bool {
 	}
 	return false
 }
-
 
 
 func (c *Creature) GetNeedValue(needType NeedType) float64 {
@@ -641,7 +635,7 @@ func (c *Creature) GetID() string {
 	return c.ID
 }
 
-func findTargetByID(id string, creatures []*model.Creature, players []*model.Player) Targetable {
+func findTargetByID(id string, creatures []*model.Creature, players []*model.Player) model.Targetable {
 	for _, c := range creatures {
 		if c.ID == id {
 			return c
