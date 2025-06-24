@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 	"math"
+	model "github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib"
-	"github.com/lunajones/apeiron/lib/context"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -25,18 +26,16 @@ type Targetable interface {
 }
 
 type Creature struct {
-	ID              string
-	Name            string
+	model.Creature  // Embutindo o modelo base
+
 	PrimaryType     CreatureType
 	Types           []CreatureType
 	Level           CreatureLevel
-	HP              int
-	MaxHP           int
 	Actions         []CreatureAction
 	CurrentAction   CreatureAction
 	AIState         AIState
 	LastStateChange time.Time
-    LastAttackedTime time.Time
+	LastAttackedTime time.Time
 	DynamicCombos   map[CreatureAction][]CreatureAction
 
 	// Atributos base
@@ -54,24 +53,8 @@ type Creature struct {
 	CriticalResistance float64
 	CriticalChance     float64
 
-	// Controle de vida e respawn
-	IsAlive        bool
-	IsCorpse       bool
-	RespawnTimeSec int
-	TimeOfDeath    time.Time
-	OwnerPlayerID  string
-
 	// Efeitos ativos
 	ActiveEffects []ActiveEffect
-
-	// Posição e spawn
-	SpawnPoint  position.Position
-	Position    position.Position
-	SpawnRadius float64
-
-	// AI Targeting
-	TargetCreatureID string
-	TargetPlayerID   string
 
 	// Perception
 	FieldOfViewDegrees float64
@@ -94,10 +77,6 @@ type Creature struct {
 	MoveSpeed   float64
 	AttackSpeed float64
 
-	// Faction / Hostility
-	Faction   string
-	IsHostile bool
-
 	// Posture / Stagger system
 	MaxPosture              float64
 	CurrentPosture          float64
@@ -110,20 +89,15 @@ type Creature struct {
 	BehaviorTree    BehaviorTree
 
 	// AI Behavior decision fields
-
-	Needs       []Need
-	CurrentRole Role
-	Tags        []CreatureTag
-	Memory      []MemoryEvent
-	MentalState MentalState
-
-	// AI Behavior decision fields
+	Needs          []Need
+	CurrentRole    Role
+	Tags           []CreatureTag
+	Memory         []MemoryEvent
+	MentalState    MentalState
 	DamageWeakness map[DamageType]float32
 
 	FacingDirection position.Vector2D
-	
 }
-
 type BehaviorTree interface {
 	Tick(c *Creature, ctx interface{}) interface{}
 }
@@ -236,9 +210,8 @@ func (c *Creature) Tick(ctx interface{}) {
 	c.TickEffects()
 	c.TickPosture()
 
-	// Faz o type assertion do contexto
-	aiCtx, ok := ctx.(context.CreatureContext)
-
+	// Faz o type assertion pro contexto
+	aiCtx, ok := ctx.(ai_context.CreatureContext)
 	if !ok {
 		log.Printf("[AI] Contexto inválido dentro de Tick() para %s", c.ID)
 		return
@@ -246,29 +219,31 @@ func (c *Creature) Tick(ctx interface{}) {
 
 	switch c.AIState {
 	case AIStateIdle:
-		// Exemplo simples: chance de entrar em alerta
+		// Chance de entrar em alerta
 		if rand.Float32() < 0.1 {
 			c.ChangeAIState(AIStateAlert)
 		}
 
 	case AIStateAlert:
-		// Procura players na visão ou audição
 		for _, p := range aiCtx.GetPlayers() {
-			if CanSeePlayer(c, []*player.Player{p}) || CanHearPlayer(c, []*player.Player{p}) {
-				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
-				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
+			playerObj, ok := p.(*player.Player)
+			if !ok {
+				continue
+			}
+
+			if CanSeePlayer(c, []*player.Player{playerObj}) || CanHearPlayer(c, []*player.Player{playerObj}) {
+				c.AddThreat(playerObj.ID, 10, "PlayerDetected", "VisionOrSound")
+				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, playerObj.ID)
 				c.ChangeAIState(AIStateChasing)
 				break
 			}
 		}
 
-		// Se depois de 2 segundos não viu ninguém, volta pro Idle
 		if time.Since(c.LastStateChange) > 2*time.Second {
 			c.ChangeAIState(AIStateIdle)
 		}
 
 	case AIStateChasing:
-		// Pega o alvo de maior threat
 		targetID := c.GetHighestThreatTarget()
 		if targetID == "" {
 			log.Printf("[AI] %s sem alvo de threat, voltando pra Idle", c.ID)
@@ -284,18 +259,18 @@ func (c *Creature) Tick(ctx interface{}) {
 			return
 		}
 
-		// Persegue o alvo
 		c.MoveTowards(target.GetPosition(), c.MoveSpeed)
 
 	case AIStateAttack:
 		log.Printf("[Creature %s] Atacando!", c.ID)
 		c.SetAction(ActionAttack)
 		c.ChangeAIState(AIStateIdle)
-	
+
 	case AIStateDead:
-		// Nada a fazer
+		// Morto, não faz nada
 	}
 }
+
 
 func (c *Creature) TickPosture() {
 	if c.IsPostureBroken {
@@ -660,8 +635,9 @@ func (c *Creature) MoveTowards(targetPos position.Position, speed float64) {
 	c.Position.X += moveX
 	c.Position.Z += moveZ
 
-	log.Printf("[AI] %s movendo-se em direção a (%f, %f)", c.ID, targetPos.X, targetPos.Z)
+	log.Printf("[AI] %s movendo-se em direção a (%.2f, %.2f)", c.ID, targetPos.X, targetPos.Z)
 }
+
 
 func (c *Creature) GetPosition() position.Position {
 	return c.Position

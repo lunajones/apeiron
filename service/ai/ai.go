@@ -3,7 +3,7 @@ package ai
 import (
 	"log"
 
-	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/factory"
 	"github.com/lunajones/apeiron/service/player"
@@ -35,7 +35,7 @@ func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*
 		return
 	}
 
-	ctx := core.AIContext{
+	ctx := ai_context.AIContext{
 		Creatures: creatures,
 		Players:   players,
 	}
