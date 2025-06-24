@@ -644,3 +644,12 @@ func findTargetByID(id string, creatures []*model.Creature, players []*model.Pla
 	}
 	return nil
 }
+
+func FindServiceByID(creatures []*Creature, id string) *Creature {
+	for _, c := range creatures {
+		if c.ID == id {
+			return c
+		}
+	}
+	return nil
+}
