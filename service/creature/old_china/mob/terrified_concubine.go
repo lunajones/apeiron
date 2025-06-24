@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -13,13 +14,22 @@ import (
 func NewTerrifiedConcubine() *creature.Creature {
 	log.Println("[Creature] Initializing terrified concubine...")
 
-	c := &creature.Creature{
-		ID:    lib.NewUUID(),
-		Name:  "Terrified Concubine",
-		Types: []creature.CreatureType{creature.Human},
-		Level: creature.Normal,
-		HP:    50,
-		MaxHP: 50,
+	return &creature.Creature{
+		Creature: model.Creature{
+			ID:             lib.NewUUID(),
+			Name:           "Terrified Concubine",
+			HP:             50,
+			MaxHP:          50,
+			IsAlive:        true,
+			RespawnTimeSec: 120,
+			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
+			SpawnRadius:    3.0,
+			Position:       position.Position{},
+		},
+
+		PrimaryType:     creature.Human,
+		Types:           []creature.CreatureType{creature.Human},
+		Level:           creature.Normal,
 		Actions: []creature.CreatureAction{
 			creature.ActionIdle,
 			creature.ActionWalk,
@@ -30,11 +40,7 @@ func NewTerrifiedConcubine() *creature.Creature {
 		AIState:                 creature.AIStateIdle,
 		LastStateChange:         time.Now(),
 		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
-		IsAlive:                 true,
 		IsCorpse:                false,
-		RespawnTimeSec:          120,
-		SpawnPoint:              position.Position{X: 0, Y: 0, Z: 0},
-		SpawnRadius:             3.0,
 		FieldOfViewDegrees:      90,
 		VisionRange:             10,
 		HearingRange:            8,
@@ -74,10 +80,6 @@ func NewTerrifiedConcubine() *creature.Creature {
 			creature.Piercing: 1.0,
 			creature.Magic:    1.0,
 		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Exemplo: olhando pro eixo X positivo
-
+		FacingDirection: position.Vector2D{X: 1, Y: 0},
 	}
-
-	c.Position = c.GenerateSpawnPosition()
-	return c
 }
