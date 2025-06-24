@@ -7,6 +7,7 @@ import (
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/creature/aggro"
 )
 
 func NewChineseSpearman() *creature.Creature {
@@ -48,7 +49,7 @@ func NewChineseSpearman() *creature.Creature {
 		DetectionRadius:         10.0,
 		AttackRange:             3.0,
 		SkillCooldowns:          make(map[creature.CreatureAction]time.Time),
-		AggroTable:              make(map[string]float64),
+		AggroTable:              make(map[string]*aggro.AggroEntry),
 		MoveSpeed:               3.2,
 		AttackSpeed:             1.0,
 		Faction:                 "Monsters",
@@ -76,6 +77,8 @@ func NewChineseSpearman() *creature.Creature {
 			creature.Piercing: 1.1,
 			creature.Magic:    0.9,
 		},
+		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Exemplo: olhando pro eixo X positivo
+
 	}
 
 	c.Position = c.GenerateSpawnPosition()

@@ -1,8 +1,11 @@
 package mob
 
 import (
+	"time"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/lib"
+	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/service/creature/aggro"
 )
 
 func NewChineseArcher() *creature.Creature {
@@ -25,5 +28,8 @@ func NewChineseArcher() *creature.Creature {
 		},
 		IsAlive:        true,
 		RespawnTimeSec: 60,
+		SkillCooldowns:          make(map[creature.CreatureAction]time.Time),
+		AggroTable:              make(map[string]*aggro.AggroEntry),
+		FacingDirection: position.Vector2D{X: 1, Y: 0}, // Exemplo: olhando pro eixo X positivo
 	}
 }

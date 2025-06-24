@@ -6,12 +6,11 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-
+	"math"
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/lib/position"
-
-
+	"github.com/lunajones/apeiron/service/creature/aggro"
 )
 
 type MemoryEvent struct {
@@ -83,7 +82,7 @@ type Creature struct {
 	SkillCooldowns map[CreatureAction]time.Time
 
 	// Aggro / Hate
-	AggroTable map[string]float64
+	AggroTable map[string]*aggro.AggroEntry
 
 	// Movement and Attack speed
 	MoveSpeed   float64
@@ -114,6 +113,8 @@ type Creature struct {
 
 	// AI Behavior decision fields
 	DamageWeakness map[DamageType]float32
+
+	FacingDirection position.Vector2D
 	
 }
 
@@ -169,7 +170,7 @@ func exampleSpawn() *Creature {
 		DetectionRadius:         10.0,
 		AttackRange:             2.5,
 		SkillCooldowns:          make(map[CreatureAction]time.Time),
-		AggroTable:              make(map[string]float64),
+		AggroTable:              make(map[string]*aggro.AggroEntry),
 		MoveSpeed:               3.5,
 		AttackSpeed:             1.2,
 		Faction:                 "Monsters",
@@ -225,26 +226,70 @@ func IsTerrainWalkable(pos position.Position) bool {
 	return true
 }
 
-func (c *Creature) Tick() {
+func (c *Creature) Tick(ctx interface{}) {
 	c.TickEffects()
 	c.TickPosture()
 
 	switch c.AIState {
 	case AIStateIdle:
+		// Exemplo: 10% chance de entrar em alerta
 		if rand.Float32() < 0.1 {
 			c.ChangeAIState(AIStateAlert)
 		}
 
 	case AIStateAlert:
-		if time.Since(c.LastStateChange) > 2*time.Second {
+		for _, p := range aiCtx.GetPlayers() {
+			if CanSeePlayer(c, []*player.Player{p}) || CanHearPlayer(c, []*player.Player{p}) {
+				c.AddThreat(p.ID, 10) // Exemplo: ganha 10 de threat por ter detectado o player
+				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
+				c.ChangeAIState(AIStateChasing)
+				break
+			}
+		}
+
+	// Se não viu ninguém, volta pro Idle depois de 2 segundos
+	if time.Since(c.LastStateChange) > 2*time.Second {
+		c.ChangeAIState(AIStateIdle)
+	}
+
+	case AIStateChasing:
+		targetID := c.GetHighestThreatTarget()
+		if targetID == "" {
+			c.ChangeAIState(AIStateIdle)
+			return
+		}
+
+		// Safe cast: espera que o contexto passado implemente um método GetCreatures()
+		type CreatureContext interface {
+			GetCreatures() []*Creature
+			GetPlayers() []*player.Player
+		}
+
+		aiCtx, ok := ctx.(CreatureContext)
+		if !ok {
+			log.Printf("[AI] Contexto inválido para Creature.Tick()")
+			return
+		}
+
+		targetCreature := FindByID(aiCtx.GetCreatures(), targetID)
+		if targetCreature == nil || !targetCreature.IsAlive {
+			c.ChangeAIState(AIStateIdle)
+			return
+		}
+
+		dist := position.CalculateDistance(c.Position, targetCreature.Position)
+		if dist <= c.AttackRange {
+			c.TargetCreatureID = targetID
 			c.ChangeAIState(AIStateAttack)
+		} else {
+			c.MoveTowards(targetCreature.Position, c.MoveSpeed*0.1)
 		}
 
 	case AIStateAttack:
 		log.Printf("[Creature %s] Atacando!", c.ID)
 		c.SetAction(ActionAttack)
 		c.ChangeAIState(AIStateIdle)
-
+	
 	case AIStateDead:
 		// Nada a fazer
 	}
@@ -348,13 +393,13 @@ func (c *Creature) TickEffects() {
 
 	for _, eff := range c.ActiveEffects {
 		// Verificar expiração
-		if now.Sub(eff.StartTime).Seconds() >= float64(eff.Duration) {
+		if now.Sub(eff.StartTime) >= eff.Duration {
 			log.Printf("[Effect] Creature %s: efeito %s expirou.", c.ID, eff.Type)
 			continue
 		}
 
 		// Processamento de efeito contínuo (DOT, Regen, etc)
-		if now.Sub(eff.LastTickTime).Seconds() >= float64(eff.TickInterval) {
+		if now.Sub(eff.LastTickTime) >= eff.TickInterval {
 			switch eff.Type {
 			case EffectPoison, EffectBurn:
 				c.HP -= eff.Power
@@ -383,9 +428,9 @@ func (c *Creature) TickEffects() {
 	c.ActiveEffects = remainingEffects
 }
 
-func TickAll() {
+func TickAll(ctx interface{}) {
 	for _, c := range creatures {
-		c.Tick()
+		c.Tick(ctx)
 	}
 }
 
@@ -424,17 +469,44 @@ func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 	return len(creatures) > 0
 }
 
-// --- Função CanSeePlayer ---
 func CanSeePlayer(c *Creature, players []*player.Player) bool {
-	// Exemplo simples só para compilar
-	return len(players) > 0
+	for _, p := range players {
+		toPlayer := position.Vector2D{
+			X: p.Position.X - c.Position.X,
+			Y: p.Position.Z - c.Position.Z, // Considerando plano XZ (horizontal)
+		}
+
+		distance := toPlayer.Magnitude()
+		if distance > c.VisionRange {
+			continue
+		}
+
+		toPlayerNormalized := toPlayer.Normalize()
+		facing := c.FacingDirection.Normalize()
+
+		dot := facing.Dot(toPlayerNormalized)
+
+		// Converte FOV em cosseno pra comparação
+		fovRadians := (c.FieldOfViewDegrees / 2) * (math.Pi / 180)
+		cosFov := math.Cos(fovRadians)
+
+		if dot >= cosFov {
+			return true
+		}
+	}
+	return false
 }
 
-// --- Função CanHearPlayer ---
 func CanHearPlayer(c *Creature, players []*player.Player) bool {
-	// Exemplo simples só para compilar
-	return len(players) > 0
+	for _, p := range players {
+		distance := position.CalculateDistance(c.Position, p.Position)
+		if distance <= c.HearingRange {
+			return true
+		}
+	}
+	return false
 }
+
 
 func (c *Creature) GetNeedValue(needType NeedType) float64 {
 	for _, n := range c.Needs {
@@ -497,6 +569,47 @@ func (c *Creature) Respawn() {
 	// Pode adicionar mais resets aqui depois
 }
 
+func (c *Creature) ClearCooldowns() {
+	if c.SkillCooldowns != nil {
+		for action := range c.SkillCooldowns {
+			delete(c.SkillCooldowns, action)
+		}
+	}
+}
+
+func (c *Creature) AddThreat(targetID string, amount float64, source string, action string) {
+	if c.AggroTable == nil {
+		c.AggroTable = make(map[string]*aggro.AggroEntry)
+	}
+
+	entry, exists := c.AggroTable[targetID]
+	if !exists {
+		entry = &aggro.AggroEntry{
+			TargetID: targetID,
+		}
+		c.AggroTable[targetID] = entry
+	}
+
+	entry.ThreatValue += amount
+	entry.LastDamageTime = time.Now()
+	entry.AggroSource = source
+	entry.LastAction = action
+}
+
+func (c *Creature) GetHighestThreatTarget() string {
+	var topTarget string
+	var topThreat float64
+
+	for targetID, entry := range c.AggroTable {
+		if entry.ThreatValue > topThreat {
+			topThreat = entry.ThreatValue
+			topTarget = targetID
+		}
+	}
+
+	return topTarget
+}
+
 func (c *Creature) ClearAggro() {
 	if c.AggroTable != nil {
 		for targetID := range c.AggroTable {
@@ -505,10 +618,46 @@ func (c *Creature) ClearAggro() {
 	}
 }
 
-func (c *Creature) ClearCooldowns() {
-	if c.SkillCooldowns != nil {
-		for action := range c.SkillCooldowns {
-			delete(c.SkillCooldowns, action)
+
+func (c *Creature) ReduceThreatOverTime(decayRatePerSecond float64) {
+	now := time.Now()
+
+	for targetID, entry := range c.AggroTable {
+		elapsed := now.Sub(entry.LastDamageTime).Seconds()
+		decay := decayRatePerSecond * elapsed
+
+		entry.ThreatValue -= decay
+		if entry.ThreatValue <= 0 {
+			delete(c.AggroTable, targetID)
+			log.Printf("[Aggro] Creature %s perdeu o aggro de %s por decay.", c.ID, targetID)
+			// No futuro: Aqui você pode disparar um OnThreatLost
+		} else {
+			entry.LastDamageTime = now
 		}
 	}
 }
+
+func (c *Creature) MoveTowards(targetPos position.Position, speed float64) {
+	dx := targetPos.X - c.Position.X
+	dz := targetPos.Z - c.Position.Z
+	dist := math.Sqrt(dx*dx + dz*dz)
+
+	if dist < 0.01 {
+		return
+	}
+
+	// Atualiza a direção que a criatura está olhando
+	c.FacingDirection = position.Vector2D{
+		X: dx / dist,
+		Y: dz / dist,
+	}
+
+	moveX := (dx / dist) * speed
+	moveZ := (dz / dist) * speed
+
+	c.Position.X += moveX
+	c.Position.Z += moveZ
+
+	log.Printf("[AI] %s movendo-se em direção a (%f, %f)", c.ID, targetPos.X, targetPos.Z)
+}
+

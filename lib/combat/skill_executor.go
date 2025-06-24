@@ -4,9 +4,10 @@ import (
 	"log"
 	"math"
 	"time"
+
 	"github.com/lunajones/apeiron/lib/position"
-	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/player"
 )
 
 func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillName string, creatures []*creature.Creature, players []*player.Player) {
@@ -23,6 +24,15 @@ func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos 
 		return
 	}
 
+	// Atualizar FacingDirection para skills single-target
+	if !skillData.IsGroundTargeted && target != nil {
+		dir := position.Vector2D{
+			X: target.Position.X - attacker.Position.X,
+			Y: target.Position.Z - attacker.Position.Z,
+		}
+		attacker.FacingDirection = dir.Normalize()
+	}
+
 	// Aplicação
 	if skillData.IsGroundTargeted && skillData.AOERadius > 0 {
 		ApplyAOEDamage(attacker, targetPos, skillData, creatures, players)
@@ -36,6 +46,14 @@ func UseSkill(attacker *creature.Creature, target *creature.Creature, targetPos 
 }
 
 func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, skill Skill) {
+	if target != nil {
+		dir := position.Vector2D{
+			X: target.Position.X - attacker.Position.X,
+			Y: target.Position.Z - attacker.Position.Z,
+		}
+		attacker.FacingDirection = dir.Normalize()
+	}
+
 	var damage int
 	switch skill.SkillType {
 	case "Physical":
@@ -51,9 +69,10 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 	log.Printf("[SkillExecutor] %s usou %s contra %s causando %d de dano. HP alvo: %d", attacker.ID, skill.Name, target.ID, damage, target.HP)
 
 	if target.HP <= 0 {
+		target.IsAlive = false
+		target.IsCorpse = true
+		target.TimeOfDeath = time.Now()
 		log.Printf("[Combat] %s morreu para %s.", target.ID, attacker.ID)
-		target.ChangeAIState(creature.AIStateDead)
-
 	}
 
 	if skill.IsDOT {
@@ -61,8 +80,8 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 		effect := creature.ActiveEffect{
 			Type:         creature.EffectPoison,
 			StartTime:    time.Now(),
-			Duration:     int64(skill.DOTDurationSec),
-			TickInterval: int64(skill.DOTTickSec),
+			Duration:     time.Duration(skill.DOTDurationSec) * time.Second,
+			TickInterval: time.Duration(skill.DOTTickSec) * time.Second,
 			Power:        dotPower,
 			IsDOT:        true,
 			IsDebuff:     true,
@@ -81,15 +100,21 @@ func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, sk
 			ApplyDirectDamage(attacker, c, skillData)
 		}
 	}
-	// Players também, se quiser permitir friendly fire ou PvP
+
+	// Exemplo: aplicar também em players, se quiser fazer isso depois
 	for _, p := range players {
 		if Distance(p.Position, targetPos) <= skillData.AOERadius {
-			// Aqui você pode aplicar o mesmo cálculo para players, criando um ApplyDirectDamageToPlayer()
+			// Exemplo: criar ApplyDirectDamageToPlayer() se quiser dano em player
 		}
 	}
 }
 
 func SimulateProjectile(attacker *creature.Creature, target *creature.Creature, targetPos position.Position, skillData Skill) {
+	if target == nil {
+		log.Printf("[SkillExecutor] SimulateProjectile recebeu target nil. Skill: %s", skillData.Name)
+		return
+	}
+
 	travelTime := Distance(attacker.Position, targetPos) / skillData.ProjectileSpeed
 	time.AfterFunc(time.Duration(travelTime*1000)*time.Millisecond, func() {
 		ApplyDirectDamage(attacker, target, skillData)

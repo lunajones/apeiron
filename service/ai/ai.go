@@ -11,6 +11,7 @@ import (
 
 var behaviorTrees map[string]creature.BehaviorTree
 
+// InitBehaviorTrees carrega a árvore de comportamento para cada tipo primário de criatura
 func InitBehaviorTrees(players []*player.Player, creatures []*creature.Creature) {
 	behaviorTrees = make(map[string]creature.BehaviorTree)
 
@@ -21,11 +22,12 @@ func InitBehaviorTrees(players []*player.Player, creatures []*creature.Creature)
 			behaviorTrees[primaryType] = tree
 			log.Printf("[AI] BehaviorTree carregada para %s", primaryType)
 		} else {
-			log.Printf("[AI] Nenhuma BehaviorTree encontrada para %s", c.ID)
+			log.Printf("[AI] Nenhuma BehaviorTree encontrada para %s (%s)", c.ID, c.PrimaryType)
 		}
 	}
 }
 
+// ProcessAI executa a árvore de comportamento da criatura
 func ProcessAI(c *creature.Creature, creatures []*creature.Creature, players []*player.Player) {
 	tree, exists := behaviorTrees[string(c.PrimaryType)]
 	if !exists {

@@ -32,8 +32,8 @@ const (
 type ActiveEffect struct {
 	Type          EffectType
 	StartTime     time.Time
-	Duration      int64 // em segundos
-	TickInterval  int64 // a cada quantos segundos o efeito aplica (ex: 1s, 2s)
+	Duration      time.Duration
+	TickInterval  time.Duration
 	LastTickTime  time.Time
 	Power         int   // Intensidade (ex: quanto de dano ou quanto de slow)
 	IsDOT         bool  // Se é Damage Over Time
