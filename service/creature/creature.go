@@ -214,7 +214,8 @@ func (c *Creature) Tick(ctx ai_context.AIContext) {
 
 	case AIStateAlert:
 		for _, p := range ctx.GetPlayers() {
-			if CanSeePlayer(c, p) || CanHearPlayer(c, p) {
+			singlePlayerSlice := []*model.Player{p}
+			if CanSeePlayer(c, singlePlayerSlice) || CanHearPlayer(c, singlePlayerSlice) {
 				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
 				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
 				c.ChangeAIState(AIStateChasing)
@@ -430,15 +431,15 @@ func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 	return len(creatures) > 0
 }
 
-func CanSeePlayer(c *Creature, p *model.Player) bool {
+func CanSeePlayer(c *Creature, players []*model.Player) bool {
 	for _, p := range players {
 		toPlayer := position.Vector2D{
 			X: p.Position.X - c.Position.X,
-			Y: p.Position.Z - c.Position.Z,
+			Y: p.Position.Z - c.Position.Z, // Considerando plano XZ (horizontal)
 		}
 
 		distance := toPlayer.Magnitude()
-		if distance > c.VisionRange {
+		if distance > c.FieldOfViewDegrees {
 			continue
 		}
 
@@ -457,7 +458,8 @@ func CanSeePlayer(c *Creature, p *model.Player) bool {
 	return false
 }
 
-func CanHearPlayer(c *Creature, p *model.Player) bool {
+
+func CanHearPlayer(c *Creature, players []*model.Player) bool {
 	for _, p := range players {
 		distance := position.CalculateDistance(c.Position, p.Position)
 		if distance <= c.HearingRange {
@@ -466,7 +468,6 @@ func CanHearPlayer(c *Creature, p *model.Player) bool {
 	}
 	return false
 }
-
 
 func (c *Creature) GetNeedValue(needType NeedType) float64 {
 	for _, n := range c.Needs {
