@@ -3,8 +3,8 @@ package node
 import (
 	"log"
 
-	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 )
@@ -13,13 +13,13 @@ type AttackIfVulnerableNode struct {
 	SkillName string
 }
 
-func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
+func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx dynamic_context.AIServiceContext) core.BehaviorStatus {
 	if c.TargetCreatureID == "" {
 		log.Printf("[AI] %s não tem target para avaliar vulnerabilidade.", c.ID)
 		return core.StatusFailure
 	}
 
-	target := creature.FindByID(ctx.Creatures, c.TargetCreatureID)
+	target := creature.FindServiceByID(ctx.GetServiceCreatures(), c.TargetCreatureID)
 	if target == nil || !target.IsAlive {
 		log.Printf("[AI] %s: Target %s inválido ou morto.", c.ID, c.TargetCreatureID)
 		return core.StatusFailure
@@ -42,14 +42,14 @@ func (n *AttackIfVulnerableNode) Tick(c *creature.Creature, ctx ai_context.AICon
 	hunger := c.GetNeedValue(creature.NeedHunger)
 	if hunger > 80 && c.HasTag(creature.TagPredator) {
 		log.Printf("[AI] %s faminto, atacando alvo vulnerável %s.", c.ID, target.ID)
-		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
+		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.GetServiceCreatures(), ctx.GetServicePlayers())
 		return core.StatusSuccess
 	}
 
 	// Regra final: Se está agressivo ou enraivecido, ataca mesmo sem estar com fome
 	if c.MentalState == creature.MentalStateAggressive || c.MentalState == creature.MentalStateEnraged {
 		log.Printf("[AI] %s agressivo/enraivecido, atacando %s.", c.ID, target.ID)
-		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.Creatures, ctx.Players)
+		combat.UseSkill(c, target, target.Position, n.SkillName, ctx.GetServiceCreatures(), ctx.GetServicePlayers())
 		return core.StatusSuccess
 	}
 
