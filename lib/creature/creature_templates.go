@@ -8,7 +8,10 @@ import (
 
 var templateRegistry = map[int]func() *creature.Creature{
 	1001: mob.NewChineseSoldier,
-	// Adicione aqui outros templates quando criar
+	1002: mob.NewChineseWolf,
+	1003: mob.NewChineseArcher,
+	1004: mob.NewChineseSpearman,
+	1005: mob.NewTerrifiedConcubine,
 }
 
 func CreateFromTemplate(templateID int) *creature.Creature {

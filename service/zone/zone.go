@@ -8,8 +8,7 @@ import (
 	"github.com/lunajones/apeiron/service/world/spawn"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/creature/old_china/mob"
-	"github.com/lunajones/apeiron/lib/creature"
+	creaturelib "github.com/lunajones/apeiron/lib/creature"
 )
 
 type Zone struct {
@@ -24,13 +23,12 @@ var creatureCounter int
 func Init() {
 	log.Println("[Zone] initializing zones...")
 
-	zone1 := &Zone{ID: "zone_map1"}
+	zone1 := &Zone{ID: "old_china"}
 
-	// Exemplo de criação de soldados e lobos
-	zone1.Creatures = append(zone1.Creatures, mob.NewChineseSoldier())
-	//zone1.Creatures = append(zone1.Creatures, mob.NewChineseSoldier())
-	zone1.Creatures = append(zone1.Creatures, mob.NewChineseWolf())
-	//zone1.Creatures = append(zone1.Creatures, mob.NewChineseWolf())
+	err := zone1.LoadStaticSpawns()
+	if err != nil {
+		log.Printf("[Zone] Erro ao carregar spawns da zona: %v", err)
+	}
 
 	Zones = append(Zones, zone1)
 
@@ -55,16 +53,16 @@ func generateUniqueCreatureID() string {
 }
 
 func (z *Zone) LoadStaticSpawns() error {
-	filePath := filepath.Join("data", "zones", fmt.Sprintf("%s_spawns.json", z.Name))
+	filePath := filepath.Join("data", "zone", z.ID, "spawns.json")
 
 	spawnDefs, err := spawn.LoadSpawnsForZone(filePath)
 	if err != nil {
-		return fmt.Errorf("erro carregando spawns da zona %s: %v", z.Name, err)
+		return fmt.Errorf("erro carregando spawns da zona %s: %v", z.ID, err)
 	}
 
 	for _, def := range spawnDefs {
 		for i := 0; i < def.Count; i++ {
-			newCreature := creature.CreateFromTemplate(def.TemplateID)
+			newCreature := creaturelib.CreateFromTemplate(def.TemplateID)
 			if newCreature == nil {
 				log.Printf("[Zone] Falha ao criar criatura de templateID %d", def.TemplateID)
 				continue
@@ -74,9 +72,14 @@ func (z *Zone) LoadStaticSpawns() error {
 			newCreature.Position = spawnPos
 
 			z.AddCreature(newCreature)
-			log.Printf("[Zone] Criado NPC %s na zona %s", newCreature.ID, z.Name)
+			log.Printf("[Zone] Criado NPC %s na zona %s", newCreature.ID, z.ID)
 		}
 	}
 
 	return nil
+}
+
+
+func (z *Zone) AddCreature(c *creature.Creature) {
+	z.Creatures = append(z.Creatures, c)
 }

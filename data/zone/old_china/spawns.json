@@ -1,0 +1,23 @@
+[
+  {
+    "TemplateID": 1001,
+    "Position": { "X": 100, "Y": 50, "Z": 0 },
+    "Radius": 5,
+    "Count": 3,
+    "RespawnTimeSec": 120
+  },
+  {
+    "TemplateID": 1002,
+    "Position": { "X": 120, "Y": 60, "Z": 0 },
+    "Radius": 3,
+    "Count": 2,
+    "RespawnTimeSec": 180
+  },
+  {
+    "TemplateID": 1003,
+    "Position": { "X": 140, "Y": 70, "Z": 0 },
+    "Radius": 8,
+    "Count": 4,
+    "RespawnTimeSec": 150
+  }
+]

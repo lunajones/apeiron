@@ -2,11 +2,12 @@ package mob
 
 import (
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/lib"
 )
 
-func NewChineseArcher(id string) *creature.Creature {
+func NewChineseArcher() *creature.Creature {
 	return &creature.Creature{
-		ID:    id,
+		ID:    lib.NewUUID(),
 		Name:  "Chinese Archer",
 		Types: []creature.CreatureType{
 			creature.Human,
@@ -21,10 +22,6 @@ func NewChineseArcher(id string) *creature.Creature {
 			creature.ActionSkill2,
 			creature.ActionCombo1,
 			creature.ActionDie,
-		},
-		DamageWeakness: map[creature.DamageType]float32{
-			creature.Piercing: 1.2,
-			creature.Magic:    0.8,
 		},
 		IsAlive:        true,
 		RespawnTimeSec: 60,
