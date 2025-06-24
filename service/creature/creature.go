@@ -10,7 +10,6 @@ import (
 	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/ai_context"
-	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 )
@@ -209,15 +208,13 @@ func (c *Creature) Tick(ctx ai_context.AIContext) {
 
 	switch c.AIState {
 	case AIStateIdle:
-		// Exemplo simples: chance de entrar em alerta
 		if rand.Float32() < 0.1 {
 			c.ChangeAIState(AIStateAlert)
 		}
 
 	case AIStateAlert:
-		// Procura players na visão ou audição
 		for _, p := range ctx.GetPlayers() {
-			if CanSeePlayer(c, []*player.Player{p}) || CanHearPlayer(c, []*player.Player{p}) {
+			if CanSeePlayer(c, p) || CanHearPlayer(c, p) {
 				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
 				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
 				c.ChangeAIState(AIStateChasing)
@@ -225,13 +222,11 @@ func (c *Creature) Tick(ctx ai_context.AIContext) {
 			}
 		}
 
-		// Se depois de 2 segundos não viu ninguém, volta pro Idle
 		if time.Since(c.LastStateChange) > 2*time.Second {
 			c.ChangeAIState(AIStateIdle)
 		}
 
 	case AIStateChasing:
-		// Pega o alvo de maior threat
 		targetID := c.GetHighestThreatTarget()
 		if targetID == "" {
 			log.Printf("[AI] %s sem alvo de threat, voltando pra Idle", c.ID)
@@ -247,7 +242,6 @@ func (c *Creature) Tick(ctx ai_context.AIContext) {
 			return
 		}
 
-		// Persegue o alvo
 		c.MoveTowards(target.GetPosition(), c.MoveSpeed)
 
 	case AIStateAttack:
@@ -259,6 +253,7 @@ func (c *Creature) Tick(ctx ai_context.AIContext) {
 		// Nada a fazer
 	}
 }
+
 
 
 func (c *Creature) TickPosture() {
@@ -435,7 +430,7 @@ func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 	return len(creatures) > 0
 }
 
-func CanSeePlayer(c *Creature, players []*model.Player) bool {
+func CanSeePlayer(c *Creature, p *model.Player) bool {
 	for _, p := range players {
 		toPlayer := position.Vector2D{
 			X: p.Position.X - c.Position.X,
@@ -462,7 +457,7 @@ func CanSeePlayer(c *Creature, players []*model.Player) bool {
 	return false
 }
 
-func CanHearPlayer(c *Creature, players []*model.Player) bool {
+func CanHearPlayer(c *Creature, p *model.Player) bool {
 	for _, p := range players {
 		distance := position.CalculateDistance(c.Position, p.Position)
 		if distance <= c.HearingRange {
