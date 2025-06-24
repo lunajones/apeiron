@@ -399,7 +399,7 @@ func (c *Creature) TickEffects() {
 	c.ActiveEffects = remainingEffects
 }
 
-func TickAll(ctx interface{}) {
+func TickAll(ctx ai_context.AIContext) {
 	for _, c := range creatures {
 		c.Tick(ctx)
 	}
@@ -440,11 +440,11 @@ func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 	return len(creatures) > 0
 }
 
-func CanSeePlayer(c *Creature, players []*player.Player) bool {
+func CanSeePlayer(c *Creature, players []*model.Player) bool {
 	for _, p := range players {
 		toPlayer := position.Vector2D{
 			X: p.Position.X - c.Position.X,
-			Y: p.Position.Z - c.Position.Z, // Considerando plano XZ (horizontal)
+			Y: p.Position.Z - c.Position.Z, // Plano XZ
 		}
 
 		distance := toPlayer.Magnitude()
@@ -457,7 +457,6 @@ func CanSeePlayer(c *Creature, players []*player.Player) bool {
 
 		dot := facing.Dot(toPlayerNormalized)
 
-		// Converte FOV em cosseno pra comparação
 		fovRadians := (c.FieldOfViewDegrees / 2) * (math.Pi / 180)
 		cosFov := math.Cos(fovRadians)
 
@@ -468,7 +467,7 @@ func CanSeePlayer(c *Creature, players []*player.Player) bool {
 	return false
 }
 
-func CanHearPlayer(c *Creature, players []*player.Player) bool {
+func CanHearPlayer(c *Creature, players []*model.Player) bool {
 	for _, p := range players {
 		distance := position.CalculateDistance(c.Position, p.Position)
 		if distance <= c.HearingRange {
@@ -477,6 +476,7 @@ func CanHearPlayer(c *Creature, players []*player.Player) bool {
 	}
 	return false
 }
+
 
 
 func (c *Creature) GetNeedValue(needType NeedType) float64 {
@@ -641,7 +641,7 @@ func (c *Creature) GetID() string {
 	return c.ID
 }
 
-func findTargetByID(id string, creatures []*Creature, players []*player.Player) Targetable {
+func findTargetByID(id string, creatures []*model.Creature, players []*model.Player) Targetable {
 	for _, c := range creatures {
 		if c.ID == id {
 			return c
