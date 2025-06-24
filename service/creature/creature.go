@@ -8,6 +8,7 @@ import (
 	"time"
 	"math"
 	"github.com/lunajones/apeiron/lib"
+	"github.com/lunajones/apeiron/lib/context"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -16,6 +17,11 @@ import (
 type MemoryEvent struct {
 	Description string
 	Timestamp   time.Time
+}
+
+type Targetable interface {
+	GetPosition() position.Position
+	GetID() string
 }
 
 type Creature struct {
@@ -230,60 +236,56 @@ func (c *Creature) Tick(ctx interface{}) {
 	c.TickEffects()
 	c.TickPosture()
 
+	// Faz o type assertion do contexto
+	aiCtx, ok := ctx.(context.CreatureContext)
+
+	if !ok {
+		log.Printf("[AI] Contexto inválido dentro de Tick() para %s", c.ID)
+		return
+	}
+
 	switch c.AIState {
 	case AIStateIdle:
-		// Exemplo: 10% chance de entrar em alerta
+		// Exemplo simples: chance de entrar em alerta
 		if rand.Float32() < 0.1 {
 			c.ChangeAIState(AIStateAlert)
 		}
 
 	case AIStateAlert:
+		// Procura players na visão ou audição
 		for _, p := range aiCtx.GetPlayers() {
 			if CanSeePlayer(c, []*player.Player{p}) || CanHearPlayer(c, []*player.Player{p}) {
-				c.AddThreat(p.ID, 10) // Exemplo: ganha 10 de threat por ter detectado o player
+				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
 				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
 				c.ChangeAIState(AIStateChasing)
 				break
 			}
 		}
 
-	// Se não viu ninguém, volta pro Idle depois de 2 segundos
-	if time.Since(c.LastStateChange) > 2*time.Second {
-		c.ChangeAIState(AIStateIdle)
-	}
+		// Se depois de 2 segundos não viu ninguém, volta pro Idle
+		if time.Since(c.LastStateChange) > 2*time.Second {
+			c.ChangeAIState(AIStateIdle)
+		}
 
 	case AIStateChasing:
+		// Pega o alvo de maior threat
 		targetID := c.GetHighestThreatTarget()
 		if targetID == "" {
+			log.Printf("[AI] %s sem alvo de threat, voltando pra Idle", c.ID)
 			c.ChangeAIState(AIStateIdle)
 			return
 		}
 
-		// Safe cast: espera que o contexto passado implemente um método GetCreatures()
-		type CreatureContext interface {
-			GetCreatures() []*Creature
-			GetPlayers() []*player.Player
-		}
-
-		aiCtx, ok := ctx.(CreatureContext)
-		if !ok {
-			log.Printf("[AI] Contexto inválido para Creature.Tick()")
-			return
-		}
-
-		targetCreature := FindByID(aiCtx.GetCreatures(), targetID)
-		if targetCreature == nil || !targetCreature.IsAlive {
+		target := findTargetByID(targetID, aiCtx.GetCreatures(), aiCtx.GetPlayers())
+		if target == nil {
+			log.Printf("[AI] %s: alvo %s não encontrado, limpando aggro", c.ID, targetID)
+			c.ClearAggro()
 			c.ChangeAIState(AIStateIdle)
 			return
 		}
 
-		dist := position.CalculateDistance(c.Position, targetCreature.Position)
-		if dist <= c.AttackRange {
-			c.TargetCreatureID = targetID
-			c.ChangeAIState(AIStateAttack)
-		} else {
-			c.MoveTowards(targetCreature.Position, c.MoveSpeed*0.1)
-		}
+		// Persegue o alvo
+		c.MoveTowards(target.GetPosition(), c.MoveSpeed)
 
 	case AIStateAttack:
 		log.Printf("[Creature %s] Atacando!", c.ID)
@@ -577,7 +579,7 @@ func (c *Creature) ClearCooldowns() {
 	}
 }
 
-func (c *Creature) AddThreat(targetID string, amount float64, source string, action string) {
+func (c *Creature) AddThreat(targetID string, amount float64, source, action string) {
 	if c.AggroTable == nil {
 		c.AggroTable = make(map[string]*aggro.AggroEntry)
 	}
@@ -661,3 +663,24 @@ func (c *Creature) MoveTowards(targetPos position.Position, speed float64) {
 	log.Printf("[AI] %s movendo-se em direção a (%f, %f)", c.ID, targetPos.X, targetPos.Z)
 }
 
+func (c *Creature) GetPosition() position.Position {
+	return c.Position
+}
+
+func (c *Creature) GetID() string {
+	return c.ID
+}
+
+func findTargetByID(id string, creatures []*Creature, players []*player.Player) Targetable {
+	for _, c := range creatures {
+		if c.ID == id {
+			return c
+		}
+	}
+	for _, p := range players {
+		if p.ID == id {
+			return p
+		}
+	}
+	return nil
+}

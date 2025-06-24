@@ -16,3 +16,12 @@ type Player struct {
 	SkillPoints     int
 	SkillTreeProgress map[string]int    // SkillID → Progress (ex: pontos gastos)
 }
+
+
+func (p *Player) GetPosition() position.Position {
+	return p.Position
+}
+
+func (p *Player) GetID() string {
+	return p.ID
+}
