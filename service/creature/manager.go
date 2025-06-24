@@ -29,11 +29,11 @@ func (m *Manager) RemoveCreature(id string) {
 }
 
 func (m *Manager) TickAll() {
-	now := time.Now().Unix()
+	now := time.Now()
 
 	for _, c := range m.creatures {
 		if !c.IsAlive {
-			if c.RespawnTimeSec > 0 && now-c.TimeOfDeath >= int64(c.RespawnTimeSec) {
+			if c.RespawnTimeSec > 0 && !c.TimeOfDeath.IsZero() && now.Sub(c.TimeOfDeath).Seconds() >= float64(c.RespawnTimeSec) {
 				m.RespawnCreature(c)
 			}
 			continue
@@ -57,7 +57,7 @@ func (m *Manager) TickCreature(c *Creature) {
 
 func (m *Manager) KillCreature(c *Creature) {
 	c.IsAlive = false
-	c.TimeOfDeath = time.Now().Unix()
+	c.TimeOfDeath = time.Now()
 	c.CurrentAction = ActionDie
 	log.Printf("[Creature %s] morreu. Respawn em %d segundos", c.ID, c.RespawnTimeSec)
 }
@@ -65,6 +65,7 @@ func (m *Manager) KillCreature(c *Creature) {
 func (m *Manager) RespawnCreature(c *Creature) {
 	c.HP = c.MaxHP
 	c.IsAlive = true
+	c.TimeOfDeath = time.Time{}
 	c.CurrentAction = ActionIdle
 	log.Printf("[Creature %s] Respawned at position: %+v", c.ID, c.Position)
 }

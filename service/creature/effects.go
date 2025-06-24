@@ -1,5 +1,9 @@
 package creature
 
+import (
+	"time"
+)
+
 type EffectType string
 
 const (
@@ -27,10 +31,10 @@ const (
 
 type ActiveEffect struct {
 	Type          EffectType
-	StartTime     int64
+	StartTime     time.Time
 	Duration      int64 // em segundos
 	TickInterval  int64 // a cada quantos segundos o efeito aplica (ex: 1s, 2s)
-	LastTickTime  int64
+	LastTickTime  time.Time
 	Power         int   // Intensidade (ex: quanto de dano ou quanto de slow)
 	IsDOT         bool  // Se é Damage Over Time
 	IsDebuff      bool  // Se é um efeito negativo

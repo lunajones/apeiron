@@ -3,6 +3,7 @@ package zone
 import (
 	"fmt"
 	"log"
+	"time"
 	"path/filepath"
 
 	"github.com/lunajones/apeiron/service/world/spawn"
@@ -37,7 +38,18 @@ func Init() {
 
 func (z *Zone) Tick(ctx core.AIContext) {
 	for _, c := range z.Creatures {
-		if c.IsAlive && c.BehaviorTree != nil {
+		if !c.IsAlive {
+			if c.TimeOfDeath.IsZero() {
+				continue
+			}
+			if time.Since(c.TimeOfDeath) >= time.Duration(c.RespawnTimeSec)*time.Second {
+				log.Printf("[Zone] Respawnando criatura %s", c.ID)
+				c.Respawn()
+			}
+			continue
+		}
+
+		if c.BehaviorTree != nil {
 			c.BehaviorTree.Tick(c, ctx)
 		}
 	}

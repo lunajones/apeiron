@@ -53,7 +53,7 @@ type Creature struct {
 	IsAlive        bool
 	IsCorpse       bool
 	RespawnTimeSec int
-	TimeOfDeath    int64
+	TimeOfDeath    time.Time
 	OwnerPlayerID  string
 
 	// Efeitos ativos
@@ -301,7 +301,7 @@ func (c *Creature) ChangeAIState(newState AIState) {
 	case AIStateDead:
 		c.SetAction(ActionDie)
 		c.IsAlive = false
-		c.TimeOfDeath = time.Now().Unix()
+		c.TimeOfDeath = time.Now()
 	case AIStateStaggered:
 		// Lógica para stagger
 	}
@@ -342,18 +342,18 @@ func (c *Creature) ApplyEffect(effect ActiveEffect) {
 }
 
 func (c *Creature) TickEffects() {
-	now := time.Now().Unix()
+	now := time.Now()
 	var remainingEffects []ActiveEffect
 
 	for _, eff := range c.ActiveEffects {
 		// Verificar expiração
-		if now-eff.StartTime >= eff.Duration {
+		if now.Sub(eff.StartTime).Seconds() >= float64(eff.Duration) {
 			log.Printf("[Effect] Creature %s: efeito %s expirou.", c.ID, eff.Type)
 			continue
 		}
 
 		// Processamento de efeito contínuo (DOT, Regen, etc)
-		if now-eff.LastTickTime >= eff.TickInterval {
+		if now.Sub(eff.LastTickTime).Seconds() >= float64(eff.TickInterval) {
 			switch eff.Type {
 			case EffectPoison, EffectBurn:
 				c.HP -= eff.Power
@@ -486,4 +486,30 @@ func (c *Creature) HasType(t CreatureType) bool {
 		}
 	}
 	return false
+}
+
+func (c *Creature) Respawn() {
+	c.HP = c.MaxHP
+	c.IsAlive = true
+	c.Position = c.GenerateSpawnPosition()
+	c.TimeOfDeath = time.Time{} // Zera o campo
+	c.ClearAggro()
+	c.ClearCooldowns()
+	// Pode adicionar mais resets aqui depois
+}
+
+func (c *Creature) ClearAggro() {
+	if c.AggroTable != nil {
+		for targetID := range c.AggroTable {
+			delete(c.AggroTable, targetID)
+		}
+	}
+}
+
+func (c *Creature) ClearCooldowns() {
+	if c.SkillCooldowns != nil {
+		for action := range c.SkillCooldowns {
+			delete(c.SkillCooldowns, action)
+		}
+	}
 }

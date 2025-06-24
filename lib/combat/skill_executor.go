@@ -60,7 +60,7 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 		dotPower := damage / (skill.DOTDurationSec / skill.DOTTickSec)
 		effect := creature.ActiveEffect{
 			Type:         creature.EffectPoison,
-			StartTime:    time.Now().Unix(),
+			StartTime:    time.Now(),
 			Duration:     int64(skill.DOTDurationSec),
 			TickInterval: int64(skill.DOTTickSec),
 			Power:        dotPower,
