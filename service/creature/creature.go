@@ -301,6 +301,7 @@ func (c *Creature) ChangeAIState(newState AIState) {
 	case AIStateDead:
 		c.SetAction(ActionDie)
 		c.IsAlive = false
+		c.IsCorpse = true
 		c.TimeOfDeath = time.Now()
 	case AIStateStaggered:
 		// Lógica para stagger
@@ -359,9 +360,7 @@ func (c *Creature) TickEffects() {
 				c.HP -= eff.Power
 				log.Printf("[Effect] Creature %s sofreu %d de %s. HP atual: %d", c.ID, eff.Power, eff.Type, c.HP)
 				if c.HP <= 0 && c.IsAlive {
-					c.IsAlive = false
-					c.TimeOfDeath = now
-					c.CurrentAction = ActionDie
+					c.ChangeAIState(AIStateDead)
 					log.Printf("[Effect] Creature %s morreu por efeito %s", c.ID, eff.Type)
 				}
 

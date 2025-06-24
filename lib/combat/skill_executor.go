@@ -51,9 +51,9 @@ func ApplyDirectDamage(attacker *creature.Creature, target *creature.Creature, s
 	log.Printf("[SkillExecutor] %s usou %s contra %s causando %d de dano. HP alvo: %d", attacker.ID, skill.Name, target.ID, damage, target.HP)
 
 	if target.HP <= 0 {
-		target.IsAlive = false
-		target.IsCorpse = true
 		log.Printf("[Combat] %s morreu para %s.", target.ID, attacker.ID)
+		target.ChangeAIState(creature.AIStateDead)
+
 	}
 
 	if skill.IsDOT {
