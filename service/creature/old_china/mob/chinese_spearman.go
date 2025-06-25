@@ -64,6 +64,12 @@ func NewChineseSpearman() *creature.Creature {
 		CriticalResistance:     0.1,
 		CriticalChance:         0.04,
 		FacingDirection:        position.Vector2D{X: 1, Y: 0},
+				Needs: []creature.Need{
+			{Type: creature.NeedHunger, Value: 0, Threshold: 50},
+		},
+		Tags: []creature.CreatureTag{
+			creature.TagHumanoid,
+		},
 	}
 
 	c.Position = c.GenerateSpawnPosition()
