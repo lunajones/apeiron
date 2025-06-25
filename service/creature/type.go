@@ -68,6 +68,7 @@ const (
 	AIStateStealth       AIState = "Stealth"
     AIStateAlert         AIState = "Alert"
 	AIStateAttack        AIState = "Attack"
+	AIStateCombat        AIState = "Combat"
 	AIStateDead          AIState = "Dead"
 	AIStatePostureBroken AIState = "PostureBroken"
     AIStateSearchFood    AIState = "SearchFood"

@@ -1,44 +1,34 @@
 package node
 
 import (
-	"math"
-	"log"
-	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/lib/ai_context"
-	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/player"
+    "math"
+    "log"
+
+    "github.com/lunajones/apeiron/service/ai/core"
+    "github.com/lunajones/apeiron/service/ai/dynamic_context"
+    "github.com/lunajones/apeiron/service/creature"
 )
 
-type MaintainMediumDistanceNode struct {
-	Players []player.Player
-}
+type MaintainMediumDistanceNode struct{}
 
-func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
-	log.Printf("[AI] %s executando MaintainMediumDistanceNode", c.ID)
+func (n *MaintainMediumDistanceNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
+    svcCtx := ctx.(dynamic_context.AIServiceContext)
+    log.Printf("[AI] %s executando MaintainMediumDistanceNode", c.ID)
 
-	for _, p := range ctx.Players {
+    for _, p := range svcCtx.GetServicePlayers() {
+        dx := p.Position.X - c.Position.X
+        dz := p.Position.Z - c.Position.Z
+        distance := math.Sqrt(dx*dx + dz*dz)
 
-		dx := p.Position.X - c.Position.X
-		dz := p.Position.Z - c.Position.Z
-		distance := math.Sqrt(dx*dx + dz*dz)
+        if distance < 4.0 || distance > 8.0 {
+            c.SetAction(creature.ActionRun)
+        } else {
+            c.SetAction(creature.ActionSkill2)
+            c.ChangeAIState(creature.AIStateAttack)
+        }
 
-		idealMin := 4.0
-		idealMax := 8.0
+        return core.StatusSuccess
+    }
 
-		if distance < idealMin {
-			c.SetAction(creature.ActionRun)
-			return core.StatusSuccess
-		}
-
-		if distance > idealMax {
-			c.SetAction(creature.ActionRun)
-			return core.StatusSuccess
-		}
-
-		c.SetAction(creature.ActionSkill2)
-		c.ChangeAIState(creature.AIStateAttack)
-		return core.StatusSuccess
-	}
-
-	return core.StatusFailure
+    return core.StatusFailure
 }

@@ -41,6 +41,15 @@ type Creature struct {
 	Intelligence int
 	Focus        int
 
+	Position         position.Position
+	HP               int
+	IsHostile        bool
+	IsAlive          bool
+	IsCorpse         bool
+	TargetCreatureID string
+	TargetPlayerID   string
+	TimeOfDeath      time.Time
+
 	// Defesas e Resistências
 	PhysicalDefense    float64
 	MagicDefense       float64
@@ -111,15 +120,15 @@ func exampleSpawn() *Creature {
 	c := &Creature{
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
-			HP:             100,
 			MaxHP:          100,
-			IsAlive:        true,
-			RespawnTimeSec: 30,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
 			SpawnRadius:    5.0,
 			Faction:        "Monsters",
-			IsHostile:      true,
+			RespawnTimeSec: 30,
 		},
+		HP:             100,
+		IsAlive:        true,
+		IsHostile:      true,
 		PrimaryType:     Soldier,
 		Types:           []CreatureType{Soldier, Human},
 		Level:           Normal,

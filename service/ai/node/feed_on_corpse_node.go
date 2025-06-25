@@ -36,7 +36,7 @@ func (n *FeedOnCorpseNode) Tick(c *creature.Creature, ctx interface{}) interface
 				c.SetAction(creature.ActionSkill1) // Supondo que seja anim de comer
 				c.ChangeAIState(creature.AIStateFeeding)
 
-				c.Needs = creature.ReduceNeed(c.Needs, creature.NeedHunger, 25)
+				creature.ReduceNeed(c, creature.NeedHunger, 25)
 				c.Memory = append(c.Memory, creature.MemoryEvent{
 					Description: "Alimentou-se de cadáver",
 					Timestamp:   time.Now(),
