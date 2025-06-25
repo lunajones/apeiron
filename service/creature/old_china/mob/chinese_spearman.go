@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
-	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 )
@@ -18,65 +20,62 @@ func NewChineseSpearman() *creature.Creature {
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Chinese Spearman",
-			MaxHP:          120,
+			MaxHP:          100,
 			RespawnTimeSec: 30,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
-			SpawnRadius:    5.0,
-			Faction:        "Monsters",
+			SpawnRadius:    4.0,
+			Faction:        "Han Dynasty",
 		},
-		PrimaryType: creature.Human,
-		Types:       []creature.CreatureType{creature.Human, creature.Soldier},
-		Actions: []creature.CreatureAction{
-			creature.ActionIdle,
-			creature.ActionWalk,
-			creature.ActionRun,
-			creature.ActionSkill1,
-			creature.ActionSkill2,
-			creature.ActionDie,
-		},
-		HP:             120,
-		IsHostile:      true,
-		IsAlive:        true,
-		IsCorpse:       false,
-		CurrentAction:           creature.ActionIdle,
-		AIState:                 creature.AIStateIdle,
-		LastStateChange:         time.Now(),
-		DynamicCombos:           make(map[creature.CreatureAction][]creature.CreatureAction),
-		FieldOfViewDegrees:      120,
-		VisionRange:             15,
-		HearingRange:            10,
-		IsBlind:                 false,
-		IsDeaf:                  false,
-		DetectionRadius:         10.0,
-		AttackRange:             2.5,
-		SkillCooldowns:          make(map[creature.CreatureAction]time.Time),
-		AggroTable:              make(map[string]*aggro.AggroEntry),
-		MoveSpeed:               3.5,
-		AttackSpeed:             1.1,
-		MaxPosture:              100,
-		CurrentPosture:          100,
-		PostureRegenRate:        1.5,
+		HP:                     100,
+		IsAlive:                true,
+		IsCorpse:               false,
+		IsHostile:              true,
+		PrimaryType:            creature.Soldier,
+		Types:                  []creature.CreatureType{creature.Soldier},
+		Actions:                []creature.CreatureAction{creature.ActionIdle, creature.ActionWalk, creature.ActionRun, creature.ActionSkill1, creature.ActionDie},
+		CurrentAction:          creature.ActionIdle,
+		AIState:                creature.AIStateIdle,
+		LastStateChange:        time.Now(),
+		DynamicCombos:          make(map[creature.CreatureAction][]creature.CreatureAction),
+		FieldOfViewDegrees:     100,
+		VisionRange:            10,
+		HearingRange:           10,
+		IsBlind:                false,
+		IsDeaf:                 false,
+		DetectionRadius:        7.5,
+		AttackRange:            2.5,
+		SkillCooldowns:         make(map[creature.CreatureAction]time.Time),
+		AggroTable:             make(map[string]*aggro.AggroEntry),
+		MoveSpeed:              4.2,
+		AttackSpeed:            1.2,
+		MaxPosture:             85,
+		CurrentPosture:         85,
+		PostureRegenRate:       1.1,
 		PostureBreakDurationSec: 5,
-		Strength:                18,
-		Dexterity:               12,
-		Intelligence:            5,
-		Focus:                   8,
-		PhysicalDefense:         0.15,
-		MagicDefense:            0.05,
-		RangedDefense:           0.10,
-		ControlResistance:       0.1,
-		StatusResistance:        0.1,
-		CriticalResistance:      0.2,
-		CriticalChance:          0.05,
-		Needs: []creature.Need{
-			{Type: creature.NeedHunger, Value: 0, Threshold: 50},
-		},
-		Tags: []creature.CreatureTag{
-			creature.TagHumanoid,
-		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0},
+		Strength:               18,
+		Dexterity:              16,
+		Intelligence:           5,
+		Focus:                  7,
+		PhysicalDefense:        0.12,
+		MagicDefense:           0.04,
+		RangedDefense:          0.08,
+		ControlResistance:      0.05,
+		StatusResistance:       0.05,
+		CriticalResistance:     0.1,
+		CriticalChance:         0.04,
+		FacingDirection:        position.Vector2D{X: 1, Y: 0},
 	}
 
 	c.Position = c.GenerateSpawnPosition()
+
+	c.SetBehavior(core.NewSequenceNode(
+		core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
+		core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
+		core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
+		core.NewCooldownDecorator(&node.UseGroundSkillNode{SkillName: "SpearStorm"}, 4*time.Second),
+		core.NewCooldownDecorator(&node.AttackTargetNode{AttackSkill: "SpearThrust"}, 3*time.Second),
+		core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
+	))
+
 	return c
 }
