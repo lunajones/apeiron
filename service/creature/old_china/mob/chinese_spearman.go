@@ -68,7 +68,7 @@ func NewChineseSpearman() *creature.Creature {
 
 	c.Position = c.GenerateSpawnPosition()
 
-	c.BehaviorTree = core.NewSequenceNode(
+	c.BehaviorTree = core.NewSelectorNode(
 		core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
 		core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
 		core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),

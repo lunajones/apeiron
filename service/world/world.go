@@ -1,7 +1,9 @@
 package world
 
 import (
-	"github.com/lunajones/apeiron/service/ai"
+	"time"
+
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/player"
 	"github.com/lunajones/apeiron/service/zone"
 )
@@ -9,13 +11,14 @@ import (
 var Players []*player.Player
 
 func TickAll() {
-	for _, z := range zone.Zones {
-		for _, c := range z.Creatures {
-			if c.IsAlive {
-				ai.ProcessAI(c, z.Creatures, Players)
-				c.TickEffects()
-				c.TickPosture()
+	for {
+		for _, z := range zone.Zones {
+			ctx := dynamic_context.AIServiceContext{
+				Creatures: z.Creatures,
+				Players:   Players,
 			}
+			z.Tick(ctx)
 		}
+		time.Sleep(1 * time.Second)
 	}
 }

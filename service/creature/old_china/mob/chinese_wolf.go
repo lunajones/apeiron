@@ -70,7 +70,7 @@ func NewChineseWolf() *creature.Creature {
 
 	c.Position = c.GenerateSpawnPosition()
 
-	c.BehaviorTree = core.NewSequenceNode(
+	c.BehaviorTree = core.NewSelectorNode(
 	core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
 	core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 3*time.Second),
 	core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),

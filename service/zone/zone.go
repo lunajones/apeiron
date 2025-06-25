@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/lunajones/apeiron/service/world/spawn"
-	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 	creaturelib "github.com/lunajones/apeiron/lib/creature"
 )
@@ -36,7 +35,7 @@ func Init() {
 	log.Println("[Zone] finishing zones...")
 }
 
-func (z *Zone) Tick(ctx ai_context.AIContext) {
+func (z *Zone) Tick(ctx interface{}) {
 	for _, c := range z.Creatures {
 		if !c.IsAlive {
 			if c.TimeOfDeath.IsZero() {
@@ -54,6 +53,7 @@ func (z *Zone) Tick(ctx ai_context.AIContext) {
 		}
 	}
 }
+
 
 type BehaviorNode interface {
 	Tick(c *creature.Creature) interface{}
