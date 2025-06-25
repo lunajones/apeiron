@@ -21,16 +21,16 @@ func NewChineseWolf() *creature.Creature {
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Chinese Wolf",
-			HP:             80,
 			MaxHP:          80,
-			IsAlive:        true,
-			IsCorpse:       false,
 			RespawnTimeSec: 25,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
 			SpawnRadius:    4.0,
 			Faction:        "Beasts",
-			IsHostile:      true,
 		},
+		HP:             80,
+		IsAlive:        true,
+		IsCorpse:       false,
+		IsHostile:      true,
 		PrimaryType:            creature.Wolf,
 		Types:                  []creature.CreatureType{creature.Wolf},
 		Actions:                []creature.CreatureAction{creature.ActionIdle, creature.ActionWalk, creature.ActionRun, creature.ActionSkill1, creature.ActionDie},
@@ -71,15 +71,15 @@ func NewChineseWolf() *creature.Creature {
 
 	c.Position = c.GenerateSpawnPosition()
 
-	c.SetBehavior(core.NewSequenceNode([]core.BehaviorNode{
-		core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
-		core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 3*time.Second),
-		core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
-		core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
-		core.NewCooldownDecorator(&node.AttackIfVulnerableNode{AttackSkill: "Bite"}, 4*time.Second),
-		core.NewCooldownDecorator(&node.AttackTargetNode{AttackSkill: "Bite"}, 3*time.Second),
-		core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
-	}))
+	c.SetBehavior(core.NewSequenceNode(
+	core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
+	core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 3*time.Second),
+	core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
+	core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
+	core.NewCooldownDecorator(&node.AttackIfVulnerableNode{AttackSkill: "Bite"}, 4*time.Second),
+	core.NewCooldownDecorator(&node.AttackTargetNode{AttackSkill: "Bite"}, 3*time.Second),
+	core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
+))
 
 	return c
 }

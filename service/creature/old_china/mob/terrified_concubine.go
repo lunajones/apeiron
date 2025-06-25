@@ -18,13 +18,13 @@ func NewTerrifiedConcubine() *creature.Creature {
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Terrified Concubine",
-			HP:             50,
 			MaxHP:          50,
-			IsAlive:        true,
 			RespawnTimeSec: 120,
 			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
 			SpawnRadius:    3.0,
 		},
+		IsAlive:        true,
+		HP:             50,
 		Types:       []creature.CreatureType{creature.Human},
 		Level:       creature.Normal,
 		Actions: []creature.CreatureAction{

@@ -14,13 +14,10 @@ func NewChineseArcher() *creature.Creature {
 		Creature: model.Creature{
 			ID:             lib.NewUUID(),
 			Name:           "Chinese Archer",
-			HP:             250,
 			MaxHP:          250,
 			RespawnTimeSec: 60,
-			Position:       position.Position{},
 			SpawnPoint:     position.Position{},
 			SpawnRadius:    5.0,
-			IsAlive:        true,
 		},
 		Actions: []creature.CreatureAction{
 			creature.ActionIdle,
@@ -30,6 +27,9 @@ func NewChineseArcher() *creature.Creature {
 			creature.ActionCombo1,
 			creature.ActionDie,
 		},
+		HP:             250,
 		LastStateChange: time.Now(),
+		IsAlive:        true,
+		Position:       position.Position{},
 	}
 }
