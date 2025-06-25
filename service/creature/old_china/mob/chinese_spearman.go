@@ -72,8 +72,9 @@ func NewChineseSpearman() *creature.Creature {
 		core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
 		core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
 		core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
+		core.NewCooldownDecorator(&node.MaintainMediumDistanceNode{}, 3*time.Second),
 		core.NewCooldownDecorator(&node.UseGroundSkillNode{SkillName: "SpearStorm"}, 4*time.Second),
-		core.NewCooldownDecorator(&node.AttackTargetNode{AttackSkill: "SpearThrust"}, 3*time.Second),
+		core.NewCooldownDecorator(&node.AttackTargetNode{SkillName: "SpearThrust"}, 3*time.Second),
 		core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
 	))
 

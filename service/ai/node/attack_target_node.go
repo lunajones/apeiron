@@ -11,7 +11,7 @@ import (
 )
 
 type AttackTargetNode struct {
-	AttackSkill string
+	SkillName string
 }
 
 func (n *AttackTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
@@ -46,10 +46,10 @@ func (n *AttackTargetNode) Tick(c *creature.Creature, ctx interface{}) interface
 		return core.StatusRunning
 	}
 
-	log.Printf("[AI] %s ataca %s com %s!", c.ID, target.ID, n.AttackSkill)
+	log.Printf("[AI] %s ataca %s com %s!", c.ID, target.ID, n.SkillName)
 
 	// Corrigido: usa UseSkill do combat
-	combat.UseSkill(c, target, target.Position, n.AttackSkill, svcCtx.GetServiceCreatures(), svcCtx.GetServicePlayers())
+	combat.UseSkill(c, target, target.Position, n.SkillName, svcCtx.GetServiceCreatures(), svcCtx.GetServicePlayers())
 
 	c.SetAction(creature.ActionSkill1)
 	c.ChangeAIState(creature.AIStateAttack)

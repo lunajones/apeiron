@@ -76,8 +76,8 @@ func NewChineseWolf() *creature.Creature {
 	core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 3*time.Second),
 	core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
 	core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
-	core.NewCooldownDecorator(&node.AttackIfVulnerableNode{AttackSkill: "Bite"}, 4*time.Second),
-	core.NewCooldownDecorator(&node.AttackTargetNode{AttackSkill: "Bite"}, 3*time.Second),
+	core.NewCooldownDecorator(&node.AttackIfVulnerableNode{SkillName: "Bite"}, 4*time.Second),
+	core.NewCooldownDecorator(&node.AttackTargetNode{SkillName: "Bite"}, 3*time.Second),
 	core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
 ))
 
