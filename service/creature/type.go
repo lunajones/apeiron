@@ -72,6 +72,7 @@ const (
 	AIStatePostureBroken AIState = "PostureBroken"
     AIStateSearchFood    AIState = "SearchFood"
 	AIStateSearchWater   AIState = "SearchWater"
+	AIStateFeeding       AIState = "Feeding" 
 )
 
 

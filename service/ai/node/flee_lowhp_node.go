@@ -6,12 +6,11 @@ import (
 
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/lib/ai_context"
 )
 
 type FleeIfLowHPNode struct{}
 
-func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
+func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	log.Printf("[AI] %s executando FleeIfLowHPNode", c.ID)
 
 	hpThreshold := 30
@@ -43,7 +42,7 @@ func (n *FleeIfLowHPNode) Tick(c *creature.Creature, ctx ai_context.AIContext) c
 	// Opcional: grava na memória que já esteve em perigo
 	c.Memory = append(c.Memory, creature.MemoryEvent{
 		Description: "Fugiu com HP crítico",
-		Timestamp: time.Now(), // Garanta que o AIContext tenha um campo Now com time.Now()
+		Timestamp:   time.Now(),
 	})
 
 	return core.StatusSuccess

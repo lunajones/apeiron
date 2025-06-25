@@ -2,33 +2,33 @@ package core
 
 import (
 	"time"
-
-	"github.com/lunajones/apeiron/lib/ai_context"
 	"github.com/lunajones/apeiron/service/creature"
 )
 
 type CooldownDecorator struct {
-	Child          BehaviorNode
-	LastExecution  time.Time
-	CooldownPeriod time.Duration
+	Child      BehaviorNode
+	LastUsed   map[string]int64
+	CooldownMS int64
 }
 
-func (n *CooldownDecorator) Tick(c *creature.Creature, ctx ai_context.AIContext) interface{} {
-	if time.Since(n.LastExecution) < n.CooldownPeriod {
+func NewCooldownDecorator(child BehaviorNode, cooldownMS int64) *CooldownDecorator {
+	return &CooldownDecorator{
+		Child:      child,
+		LastUsed:   make(map[string]int64),
+		CooldownMS: cooldownMS,
+	}
+}
+
+func (d *CooldownDecorator) Tick(c *creature.Creature, ctx interface{}) interface{} {
+	now := time.Now().UnixMilli()
+	last := d.LastUsed[c.ID]
+	if now-last < d.CooldownMS {
 		return StatusFailure
 	}
 
-	status := n.Child.Tick(c, ctx).(BehaviorStatus)
+	status := d.Child.Tick(c, ctx).(BehaviorStatus)
 	if status == StatusSuccess {
-		n.LastExecution = time.Now()
+		d.LastUsed[c.ID] = now
 	}
 	return status
-}
-
-func NewCooldownDecorator(child BehaviorNode, cooldown time.Duration) *CooldownDecorator {
-	return &CooldownDecorator{
-		Child:          child,
-		CooldownPeriod: cooldown,
-		LastExecution:  time.Time{},
-	}
 }

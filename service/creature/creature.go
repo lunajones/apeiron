@@ -1,17 +1,20 @@
+// --- creature/creature.go ---
+
 package creature
 
 import (
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"strings"
 	"time"
-	"math"
-	"github.com/lunajones/apeiron/lib/model"
+
 	"github.com/lunajones/apeiron/lib"
-	"github.com/lunajones/apeiron/lib/ai_context"
+	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature/aggro"
+	"github.com/lunajones/apeiron/service/player"
 )
 
 type MemoryEvent struct {
@@ -20,7 +23,7 @@ type MemoryEvent struct {
 }
 
 type Creature struct {
-	model.Creature  // Embutindo o modelo base
+	model.Creature
 
 	PrimaryType     CreatureType
 	Types           []CreatureType
@@ -80,7 +83,7 @@ type Creature struct {
 	PostureBreakDurationSec int
 
 	// AI Behavior Tree
-	BehaviorTree    BehaviorTree
+	BehaviorTree BehaviorTree
 
 	// AI Behavior decision fields
 	Needs          []Need
@@ -92,6 +95,7 @@ type Creature struct {
 
 	FacingDirection position.Vector2D
 }
+
 type BehaviorTree interface {
 	Tick(c *Creature, ctx interface{}) interface{}
 }
@@ -116,64 +120,59 @@ func exampleSpawn() *Creature {
 			Faction:        "Monsters",
 			IsHostile:      true,
 		},
-
 		PrimaryType:     Soldier,
 		Types:           []CreatureType{Soldier, Human},
 		Level:           Normal,
-		Actions: []CreatureAction{
-			ActionIdle,
-			ActionWalk,
-			ActionRun,
-			ActionParry,
-			ActionBlock,
-			ActionJump,
-			ActionSkill1,
-			ActionSkill2,
-			ActionSkill3,
-			ActionSkill4,
-			ActionSkill5,
-			ActionCombo1,
-			ActionCombo2,
-			ActionCombo3,
-			ActionDie,
-		},
-		CurrentAction:           ActionIdle,
-		AIState:                 AIStateIdle,
-		LastStateChange:         time.Now(),
-		DynamicCombos:           make(map[CreatureAction][]CreatureAction),
-		Strength:                20,
-		Dexterity:               10,
-		Intelligence:            5,
-		Focus:                   8,
-		PhysicalDefense:         0.15,
-		MagicDefense:            0.05,
-		RangedDefense:           0.10,
-		ControlResistance:       0.1,
-		StatusResistance:        0.1,
-		CriticalResistance:      0.2,
-		CriticalChance:          0.05,
-		FieldOfViewDegrees:      120,
-		VisionRange:             15,
-		HearingRange:            10,
-		DetectionRadius:         10.0,
-		AttackRange:             2.5,
-		SkillCooldowns:          make(map[CreatureAction]time.Time),
-		AggroTable:              make(map[string]*aggro.AggroEntry),
-		MoveSpeed:               3.5,
-		AttackSpeed:             1.2,
-		MaxPosture:              100,
-		CurrentPosture:          100,
-		PostureRegenRate:        1.5,
+		Actions:         []CreatureAction{ActionIdle, ActionWalk, ActionRun, ActionParry, ActionBlock, ActionJump, ActionSkill1, ActionSkill2, ActionSkill3, ActionSkill4, ActionSkill5, ActionCombo1, ActionCombo2, ActionCombo3, ActionDie},
+		CurrentAction:   ActionIdle,
+		AIState:         AIStateIdle,
+		LastStateChange: time.Now(),
+		DynamicCombos:   make(map[CreatureAction][]CreatureAction),
+		Strength:        20,
+		Dexterity:       10,
+		Intelligence:    5,
+		Focus:           8,
+		PhysicalDefense: 0.15,
+		MagicDefense:    0.05,
+		RangedDefense:   0.10,
+		ControlResistance:  0.1,
+		StatusResistance:   0.1,
+		CriticalResistance: 0.2,
+		CriticalChance:     0.05,
+		FieldOfViewDegrees: 120,
+		VisionRange:        15,
+		HearingRange:       10,
+		DetectionRadius:    10.0,
+		AttackRange:        2.5,
+		SkillCooldowns:     make(map[CreatureAction]time.Time),
+		AggroTable:         make(map[string]*aggro.AggroEntry),
+		MoveSpeed:          3.5,
+		AttackSpeed:        1.2,
+		MaxPosture:         100,
+		CurrentPosture:     100,
+		PostureRegenRate:   1.5,
 		PostureBreakDurationSec: 5,
-		Needs: []Need{
-			{Type: NeedHunger, Value: 0, Threshold: 50},
-		},
-		Tags: []CreatureTag{TagHumanoid},
+		Needs:              []Need{{Type: NeedHunger, Value: 0, Threshold: 50}},
+		Tags:               []CreatureTag{TagHumanoid},
 	}
 	c.Position = c.GenerateSpawnPosition()
 	return c
 }
 
+func (c *Creature) Tick(ctx interface{}) {
+	c.TickEffects()
+	c.TickPosture()
+
+	if c.BehaviorTree != nil {
+		c.BehaviorTree.Tick(c, ctx)
+	}
+}
+
+func TickAll(ctx interface{}) {
+	for _, c := range creatures {
+		c.Tick(ctx)
+	}
+}
 
 
 func (c *Creature) GenerateSpawnPosition() position.Position {
@@ -202,57 +201,36 @@ func IsTerrainWalkable(pos position.Position) bool {
 	return true
 }
 
-func (c *Creature) Tick(ctx ai_context.AIContext) {
-	c.TickEffects()
-	c.TickPosture()
-
-	switch c.AIState {
-	case AIStateIdle:
-		if rand.Float32() < 0.1 {
-			c.ChangeAIState(AIStateAlert)
+func CanSeePlayer(c *Creature, players []*player.Player) bool {
+	for _, p := range players {
+		toPlayer := position.Vector2D{
+			X: p.Position.X - c.Position.X,
+			Y: p.Position.Z - c.Position.Z,
 		}
-
-	case AIStateAlert:
-		for _, p := range ctx.GetPlayers() {
-			singlePlayerSlice := []*model.Player{p}
-			if CanSeePlayer(c, singlePlayerSlice) || CanHearPlayer(c, singlePlayerSlice) {
-				c.AddThreat(p.ID, 10, "PlayerDetected", "VisionOrSound")
-				log.Printf("[AI] %s detectou o player %s e adicionou threat.", c.ID, p.ID)
-				c.ChangeAIState(AIStateChasing)
-				break
-			}
+		distance := toPlayer.Magnitude()
+		if distance > c.VisionRange {
+			continue
 		}
-
-		if time.Since(c.LastStateChange) > 2*time.Second {
-			c.ChangeAIState(AIStateIdle)
+		toPlayerNormalized := toPlayer.Normalize()
+		facing := c.FacingDirection.Normalize()
+		dot := facing.Dot(toPlayerNormalized)
+		fovRadians := (c.FieldOfViewDegrees / 2) * (math.Pi / 180)
+		cosFov := math.Cos(fovRadians)
+		if dot >= cosFov {
+			return true
 		}
-
-	case AIStateChasing:
-		targetID := c.GetHighestThreatTarget()
-		if targetID == "" {
-			log.Printf("[AI] %s sem alvo de threat, voltando pra Idle", c.ID)
-			c.ChangeAIState(AIStateIdle)
-			return
-		}
-
-		target := findTargetByID(targetID, ctx.GetCreatures(), ctx.GetPlayers())
-		if target == nil {
-			log.Printf("[AI] %s: alvo %s não encontrado, limpando aggro", c.ID, targetID)
-			c.ClearAggro()
-			c.ChangeAIState(AIStateIdle)
-			return
-		}
-
-		c.MoveTowards(target.GetPosition(), c.MoveSpeed)
-
-	case AIStateAttack:
-		log.Printf("[Creature %s] Atacando!", c.ID)
-		c.SetAction(ActionAttack)
-		c.ChangeAIState(AIStateIdle)
-
-	case AIStateDead:
-		// Nada a fazer
 	}
+	return false
+}
+
+func CanHearPlayer(c *Creature, players []*player.Player) bool {
+	for _, p := range players {
+		distance := position.CalculateDistance(c.Position, p.Position)
+		if distance <= c.HearingRange {
+			return true
+		}
+	}
+	return false
 }
 
 
@@ -390,12 +368,6 @@ func (c *Creature) TickEffects() {
 	c.ActiveEffects = remainingEffects
 }
 
-func TickAll(ctx ai_context.AIContext) {
-	for _, c := range creatures {
-		c.Tick(ctx)
-	}
-}
-
 func DebugPrintCreatures() {
 	for _, c := range creatures {
 		fmt.Printf(
@@ -429,44 +401,6 @@ func CanSeeOtherCreatures(c *Creature, creatures []*Creature) bool {
 func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
 	// Exemplo simples só para compilar
 	return len(creatures) > 0
-}
-
-func CanSeePlayer(c *Creature, players []*model.Player) bool {
-	for _, p := range players {
-		toPlayer := position.Vector2D{
-			X: p.Position.X - c.Position.X,
-			Y: p.Position.Z - c.Position.Z, // Considerando plano XZ (horizontal)
-		}
-
-		distance := toPlayer.Magnitude()
-		if distance > c.FieldOfViewDegrees {
-			continue
-		}
-
-		toPlayerNormalized := toPlayer.Normalize()
-		facing := c.FacingDirection.Normalize()
-
-		dot := facing.Dot(toPlayerNormalized)
-
-		fovRadians := (c.FieldOfViewDegrees / 2) * (math.Pi / 180)
-		cosFov := math.Cos(fovRadians)
-
-		if dot >= cosFov {
-			return true
-		}
-	}
-	return false
-}
-
-
-func CanHearPlayer(c *Creature, players []*model.Player) bool {
-	for _, p := range players {
-		distance := position.CalculateDistance(c.Position, p.Position)
-		if distance <= c.HearingRange {
-			return true
-		}
-	}
-	return false
 }
 
 func (c *Creature) GetNeedValue(needType NeedType) float64 {
@@ -631,7 +565,7 @@ func (c *Creature) GetID() string {
 	return c.ID
 }
 
-func findTargetByID(id string, creatures []*model.Creature, players []*model.Player) model.Targetable {
+func FindTargetByID(id string, creatures []*Creature, players []*player.Player) model.Targetable {
 	for _, c := range creatures {
 		if c.ID == id {
 			return c

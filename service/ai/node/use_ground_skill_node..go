@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/lib/ai_context"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/lib/combat"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/lib/position"
@@ -14,7 +14,7 @@ type UseGroundSkillNode struct {
 	SkillName string
 }
 
-func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx ai_context.AIContext) core.BehaviorStatus {
+func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx dynamic_context.AIServiceContext) core.BehaviorStatus {
 	log.Printf("[AI] %s executando UseGroundSkillNode", c.ID)
 
 	skill, exists := combat.SkillRegistry[n.SkillName]
@@ -34,7 +34,7 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx ai_context.AIContext
 	var targetsInRange int
 
 	// Verificar players
-	for _, p := range ctx.Players {
+	for _, p := range ctx.GetServicePlayers() {
 		dist := CalculateDistance(c.Position, p.Position)
 		if dist <= skill.Range {
 			targetsInRange++
@@ -43,7 +43,7 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx ai_context.AIContext
 	}
 
 	// Verificar criaturas (exceto ele mesmo e mortos)
-	for _, other := range ctx.Creatures {
+	for _, other := range ctx.GetServiceCreatures() {
 		if other.ID == c.ID || !other.IsAlive {
 			continue
 		}
@@ -69,7 +69,7 @@ func (n *UseGroundSkillNode) Tick(c *creature.Creature, ctx ai_context.AIContext
 
 	// Executa skill
 	log.Printf("[AI] %s usando %s em posição (%f, %f, %f)", c.ID, n.SkillName, bestTargetPos.X, bestTargetPos.Y, bestTargetPos.Z)
-	combat.UseSkill(c, nil, bestTargetPos, n.SkillName, ctx.Creatures, ctx.Players)
+	combat.UseSkill(c, nil, bestTargetPos, n.SkillName, ctx.GetServiceCreatures(), ctx.GetServicePlayers())
 
 	return core.StatusSuccess
 }
