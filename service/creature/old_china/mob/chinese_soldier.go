@@ -7,6 +7,8 @@ import (
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 )
@@ -87,5 +89,16 @@ func NewChineseSoldier() *creature.Creature {
 	}
 
 	c.Position = c.GenerateSpawnPosition()
+
+	c.BehaviorTree = core.NewSequenceNode(
+	core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
+	core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
+	core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
+	core.NewCooldownDecorator(&node.MaintainMediumDistanceNode{}, 3*time.Second),
+	core.NewCooldownDecorator(&node.UseGroundSkillNode{SkillName: "SoldierSkillGroundSlam"}, 4*time.Second),
+	core.NewCooldownDecorator(&node.AttackTargetNode{SkillName: "SoldierSkill"}, 3*time.Second),
+	core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
+	)
+
 	return c
 }

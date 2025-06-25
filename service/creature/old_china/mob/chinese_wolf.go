@@ -8,7 +8,6 @@ import (
 	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -71,7 +70,7 @@ func NewChineseWolf() *creature.Creature {
 
 	c.Position = c.GenerateSpawnPosition()
 
-	c.SetBehavior(core.NewSequenceNode(
+	c.BehaviorTree = core.NewSequenceNode(
 	core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
 	core.NewCooldownDecorator(&node.FeedOnCorpseNode{}, 3*time.Second),
 	core.NewCooldownDecorator(&node.DetectOtherCreatureNode{}, 2*time.Second),
@@ -79,7 +78,7 @@ func NewChineseWolf() *creature.Creature {
 	core.NewCooldownDecorator(&node.AttackIfVulnerableNode{SkillName: "Bite"}, 4*time.Second),
 	core.NewCooldownDecorator(&node.AttackTargetNode{SkillName: "Bite"}, 3*time.Second),
 	core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
-))
+	)
 
 	return c
 }
