@@ -3,32 +3,30 @@ package core
 import (
 	"time"
 	"github.com/lunajones/apeiron/service/creature"
+	"log"
 )
 
 type CooldownDecorator struct {
-	Child      BehaviorNode
-	LastUsed   map[string]int64
-	CooldownMS int64
+	Node          BehaviorNode
+	Cooldown      time.Duration
+	LastExecution time.Time
 }
 
-func NewCooldownDecorator(child BehaviorNode, cooldownMS int64) *CooldownDecorator {
+func NewCooldownDecorator(node BehaviorNode, cooldown time.Duration) BehaviorNode {
 	return &CooldownDecorator{
-		Child:      child,
-		LastUsed:   make(map[string]int64),
-		CooldownMS: cooldownMS,
+		Node:          node,
+		Cooldown:      cooldown,
+		LastExecution: time.Unix(0, 0),
 	}
 }
 
 func (d *CooldownDecorator) Tick(c *creature.Creature, ctx interface{}) interface{} {
-	now := time.Now().UnixMilli()
-	last := d.LastUsed[c.ID]
-	if now-last < d.CooldownMS {
+	now := time.Now()
+	if now.Sub(d.LastExecution) < d.Cooldown {
+		log.Printf("[Cooldown] %s em cooldown para %T", c.ID, d.Node)
 		return StatusFailure
 	}
 
-	status := d.Child.Tick(c, ctx).(BehaviorStatus)
-	if status == StatusSuccess {
-		d.LastUsed[c.ID] = now
-	}
-	return status
+	d.LastExecution = now
+	return d.Node.Tick(c, ctx)
 }
