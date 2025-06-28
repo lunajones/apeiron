@@ -21,3 +21,10 @@ func (n *SequenceNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	}
 	return StatusSuccess
 }
+
+func (n *SequenceNode) Reset() {
+	// Se quiser, pode iterar e resetar os filhos também
+	for _, child := range n.Children {
+		child.Reset()
+	}
+}

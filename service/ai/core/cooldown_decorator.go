@@ -2,8 +2,8 @@ package core
 
 import (
 	"time"
+
 	"github.com/lunajones/apeiron/service/creature"
-	"log"
 )
 
 type CooldownDecorator struct {
@@ -23,10 +23,15 @@ func NewCooldownDecorator(node BehaviorNode, cooldown time.Duration) BehaviorNod
 func (d *CooldownDecorator) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	now := time.Now()
 	if now.Sub(d.LastExecution) < d.Cooldown {
-		log.Printf("[Cooldown] %s em cooldown para %T", c.ID, d.Node)
 		return StatusFailure
 	}
 
 	d.LastExecution = now
 	return d.Node.Tick(c, ctx)
+}
+
+func (d *CooldownDecorator) Reset() {
+	if d.Node != nil {
+		d.Node.Reset()
+	}
 }

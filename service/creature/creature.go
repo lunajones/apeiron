@@ -1,9 +1,6 @@
-// --- creature/creature.go ---
-
 package creature
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -11,10 +8,15 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
+	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/movement"
+	"github.com/lunajones/apeiron/lib/physics"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature/aggro"
+	"github.com/lunajones/apeiron/service/creature/consts"
 	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/service/world/spatial"
 )
 
 type MemoryEvent struct {
@@ -23,34 +25,46 @@ type MemoryEvent struct {
 }
 
 type Creature struct {
+	Handle               handle.EntityHandle
+	TargetCreatureHandle handle.EntityHandle
+	TargetPlayerHandle   handle.EntityHandle
+
+	Generation int
+
 	model.Creature
 
-	PrimaryType     CreatureType
-	Types           []CreatureType
-	Level           CreatureLevel
-	Actions         []CreatureAction
-	CurrentAction   CreatureAction
-	AIState         AIState
-	LastStateChange time.Time
+	MoveCtrl         *movement.MovementController
+	PrimaryType      consts.CreatureType
+	Types            []consts.CreatureType
+	Level            consts.CreatureLevel
+	Actions          []consts.CreatureAction
+	CurrentAction    consts.CreatureAction
+	AIState          consts.AIState
+	LastStateChange  time.Time
 	LastAttackedTime time.Time
-	DynamicCombos   map[CreatureAction][]CreatureAction
 
-	// Atributos base
-	Strength     int
-	Dexterity    int
-	Intelligence int
-	Focus        int
+	Skills []string
 
-	Position         position.Position
-	HP               int
-	IsHostile        bool
-	IsAlive          bool
-	IsCorpse         bool
-	TargetCreatureID string
-	TargetPlayerID   string
-	TimeOfDeath      time.Time
+	DynamicCombos map[consts.CreatureAction][]consts.CreatureAction
 
-	// Defesas e Resistências
+	Stagger       physics.StaggerData
+	Invincibility physics.InvincibilityData
+
+	Strength              int
+	Dexterity             int
+	Intelligence          int
+	Focus                 int
+	HitboxRadius          float64
+	DesiredBufferDistance float64
+	Position              position.Position
+	LastPosition          position.Position
+	HP                    int
+	IsCrouched            bool
+	IsHostile             bool
+	IsAlive               bool
+	IsCorpse              bool
+	TimeOfDeath           time.Time
+
 	PhysicalDefense    float64
 	MagicDefense       float64
 	RangedDefense      float64
@@ -59,31 +73,25 @@ type Creature struct {
 	CriticalResistance float64
 	CriticalChance     float64
 
-	// Efeitos ativos
-	ActiveEffects []ActiveEffect
+	ActiveEffects []consts.ActiveEffect
 
-	// Perception
 	FieldOfViewDegrees float64
 	VisionRange        float64
 	HearingRange       float64
+	SmellRange         float64
 	IsBlind            bool
 	IsDeaf             bool
 
-	// Perception/Combat - Range
 	DetectionRadius float64
 	AttackRange     float64
 
-	// Skill Cooldowns
-	SkillCooldowns map[CreatureAction]time.Time
+	SkillCooldowns map[consts.CreatureAction]time.Time
+	AggroTable     map[handle.EntityHandle]*aggro.AggroEntry
 
-	// Aggro / Hate
-	AggroTable map[string]*aggro.AggroEntry
-
-	// Movement and Attack speed
-	MoveSpeed   float64
+	WalkSpeed   float64
+	RunSpeed    float64
 	AttackSpeed float64
 
-	// Posture / Stagger system
 	MaxPosture              float64
 	CurrentPosture          float64
 	PostureRegenRate        float64
@@ -91,22 +99,65 @@ type Creature struct {
 	TimePostureBroken       int64
 	PostureBreakDurationSec int
 
-	// AI Behavior Tree
 	BehaviorTree BehaviorTree
 
-	// AI Behavior decision fields
-	Needs          []Need
-	CurrentRole    Role
-	Tags           []CreatureTag
+	Needs          []consts.Need
+	CurrentRole    consts.Role
+	Tags           []consts.CreatureTag
 	Memory         []MemoryEvent
-	MentalState    MentalState
-	DamageWeakness map[DamageType]float32
+	MentalState    consts.MentalState
+	DamageWeakness map[consts.DamageType]float32
 
 	FacingDirection position.Vector2D
+	LastThreatSeen  time.Time
+}
+
+func (c *Creature) GetHandle() handle.EntityHandle {
+	return c.Handle
 }
 
 type BehaviorTree interface {
 	Tick(c *Creature, ctx interface{}) interface{}
+}
+
+func (c *Creature) GenerateSpawnPosition() position.Position {
+	for attempts := 0; attempts < 10; attempts++ {
+		offsetX := (rand.Float64()*2 - 1) * c.SpawnRadius
+		offsetZ := (rand.Float64()*2 - 1) * c.SpawnRadius
+
+		x := c.SpawnPoint.FastGlobalX() + offsetX
+		y := c.SpawnPoint.FastGlobalY()
+		z := c.SpawnPoint.Z + offsetZ
+
+		newPos := position.FromGlobal(x, y, z)
+		if IsTerrainWalkable(newPos) {
+			log.Printf("[Creature] spawn em terreno válido: x=%.2f y=%.2f z=%.2f", x, y, z)
+			return newPos
+		}
+	}
+
+	x := c.SpawnPoint.FastGlobalX()
+	y := c.SpawnPoint.FastGlobalY()
+	z := c.SpawnPoint.Z
+	log.Printf("[Creature] fallback no ponto de origem: x=%.2f y=%.2f z=%.2f", x, y, z)
+	return c.SpawnPoint
+}
+
+func (c *Creature) SetPosition(newPos position.Position) {
+	c.LastPosition = c.Position
+	c.Position = newPos
+}
+
+func (c *Creature) GetPosition() position.Position {
+	return c.Position
+}
+
+func (c *Creature) GetLastPosition() position.Position {
+	return c.LastPosition
+}
+
+func (c *Creature) SetFacingDirection(dir position.Vector2D) {
+	c.FacingDirection = dir
 }
 
 var creatures []*Creature
@@ -117,92 +168,177 @@ func Init() {
 }
 
 func exampleSpawn() *Creature {
+	id := lib.NewUUID()
+
 	c := &Creature{
+		Handle:               handle.NewEntityHandle(id, 1),
+		TargetCreatureHandle: handle.EntityHandle{},
+		TargetPlayerHandle:   handle.EntityHandle{},
+		Generation:           1,
 		Creature: model.Creature{
-			ID:             lib.NewUUID(),
+			Name:           "Example Creature",
 			MaxHP:          100,
-			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
+			SpawnPoint:     position.FromGlobal(0, 0, 0),
 			SpawnRadius:    5.0,
 			Faction:        "Monsters",
 			RespawnTimeSec: 30,
 		},
-		HP:             100,
-		IsAlive:        true,
-		IsHostile:      true,
-		PrimaryType:     Soldier,
-		Types:           []CreatureType{Soldier, Human},
-		Level:           Normal,
-		Actions:         []CreatureAction{ActionIdle, ActionWalk, ActionRun, ActionParry, ActionBlock, ActionJump, ActionSkill1, ActionSkill2, ActionSkill3, ActionSkill4, ActionSkill5, ActionCombo1, ActionCombo2, ActionCombo3, ActionDie},
-		CurrentAction:   ActionIdle,
-		AIState:         AIStateIdle,
-		LastStateChange: time.Now(),
-		DynamicCombos:   make(map[CreatureAction][]CreatureAction),
-		Strength:        20,
-		Dexterity:       10,
-		Intelligence:    5,
-		Focus:           8,
-		PhysicalDefense: 0.15,
-		MagicDefense:    0.05,
-		RangedDefense:   0.10,
-		ControlResistance:  0.1,
-		StatusResistance:   0.1,
-		CriticalResistance: 0.2,
-		CriticalChance:     0.05,
-		FieldOfViewDegrees: 120,
-		VisionRange:        15,
-		HearingRange:       10,
-		DetectionRadius:    10.0,
-		AttackRange:        2.5,
-		SkillCooldowns:     make(map[CreatureAction]time.Time),
-		AggroTable:         make(map[string]*aggro.AggroEntry),
-		MoveSpeed:          3.5,
-		AttackSpeed:        1.2,
-		MaxPosture:         100,
-		CurrentPosture:     100,
-		PostureRegenRate:   1.5,
+		HP:          100,
+		IsAlive:     true,
+		IsHostile:   true,
+		IsCrouched:  false,
+		PrimaryType: consts.Soldier,
+		Types:       []consts.CreatureType{consts.Soldier, consts.Human},
+		Level:       consts.Normal,
+		Actions: []consts.CreatureAction{
+			consts.ActionIdle, consts.ActionWalk, consts.ActionRun, consts.ActionParry,
+			consts.ActionBlock, consts.ActionJump, consts.ActionSkill1, consts.ActionSkill2,
+			consts.ActionSkill3, consts.ActionSkill4, consts.ActionSkill5,
+			consts.ActionCombo1, consts.ActionCombo2, consts.ActionCombo3, consts.ActionDie,
+		},
+		Skills:                  []string{"Bite", "Lacerate"},
+		CurrentAction:           consts.ActionIdle,
+		AIState:                 consts.AIStateIdle,
+		LastStateChange:         time.Now(),
+		DynamicCombos:           make(map[consts.CreatureAction][]consts.CreatureAction),
+		Strength:                20,
+		Dexterity:               10,
+		Intelligence:            5,
+		Focus:                   8,
+		PhysicalDefense:         0.15,
+		MagicDefense:            0.05,
+		RangedDefense:           0.10,
+		ControlResistance:       0.1,
+		StatusResistance:        0.1,
+		CriticalResistance:      0.2,
+		CriticalChance:          0.05,
+		FieldOfViewDegrees:      120,
+		VisionRange:             15,
+		HearingRange:            10,
+		SmellRange:              10,
+		DetectionRadius:         10.0,
+		AttackRange:             2.5,
+		SkillCooldowns:          make(map[consts.CreatureAction]time.Time),
+		WalkSpeed:               1.0,
+		RunSpeed:                3.5,
+		AttackSpeed:             1.2,
+		MaxPosture:              100,
+		CurrentPosture:          100,
+		PostureRegenRate:        1.5,
 		PostureBreakDurationSec: 5,
-		Needs:              []Need{{Type: NeedHunger, Value: 0, Threshold: 50}},
-		Tags:               []CreatureTag{TagHumanoid},
+		Needs:                   []consts.Need{{Type: consts.NeedHunger, Value: 0, Threshold: 50}},
+		Tags:                    []consts.CreatureTag{consts.TagHumanoid},
 	}
+
 	c.Position = c.GenerateSpawnPosition()
+	c.LastPosition = c.SpawnPoint
+
 	return c
 }
 
 func (c *Creature) Tick(ctx interface{}) {
+	if !c.IsAlive {
+		return
+	}
+
+	c.TickNeeds()
 	c.TickEffects()
 	c.TickPosture()
+	c.TickPhysicsStates()
 
 	if c.BehaviorTree != nil {
 		c.BehaviorTree.Tick(c, ctx)
 	}
 }
 
-func TickAll(ctx interface{}) {
-	for _, c := range creatures {
-		c.Tick(ctx)
+func (c *Creature) TickPhysicsStates() {
+	now := time.Now().Unix()
+	physics.TickStagger(&c.Stagger, now)
+	physics.TickInvincibility(&c.Invincibility, now)
+}
+
+func (c *Creature) ApplyPostureDamage(amount float64) {
+	if c.IsPostureBroken || !c.IsAlive {
+		return
+	}
+
+	c.CurrentPosture -= amount
+	if c.CurrentPosture <= 0 {
+		c.CurrentPosture = 0
+		c.IsPostureBroken = true
+		c.TimePostureBroken = time.Now().Unix()
+		c.ChangeAIState(consts.AIStateStaggered)
+		now := time.Now().Unix()
+		c.TimePostureBroken = now
+		physics.StartStagger(&c.Stagger, now, float64(c.PostureBreakDurationSec))
+		log.Printf("[Creature %s] Posture quebrada! Entrando em stagger.", c.Handle.ID)
 	}
 }
 
-
-func (c *Creature) GenerateSpawnPosition() position.Position {
-	for attempts := 0; attempts < 10; attempts++ {
-		offsetX := (rand.Float64()*2 - 1) * c.SpawnRadius
-		offsetZ := (rand.Float64()*2 - 1) * c.SpawnRadius
-		newPos := position.Position{
-			X: c.SpawnPoint.X + offsetX,
-			Y: c.SpawnPoint.Y,
-			Z: c.SpawnPoint.Z + offsetZ,
+func (c *Creature) TickPosture() {
+	if c.IsPostureBroken {
+		if time.Now().Unix()-c.TimePostureBroken >= int64(c.PostureBreakDurationSec) {
+			c.IsPostureBroken = false
+			c.CurrentPosture = c.MaxPosture
+			c.ChangeAIState(consts.AIStateIdle)
+			log.Printf("[Creature %s] Posture recuperada.", c.Handle.String())
 		}
-
-		if IsTerrainWalkable(newPos) {
-			log.Println("[Creature] spawning in walkable terrain in position %s, %s, %s", newPos.X, newPos.Y, newPos.Z)
-
-			return newPos
+	} else if c.CurrentPosture < c.MaxPosture {
+		c.CurrentPosture += c.PostureRegenRate
+		if c.CurrentPosture > c.MaxPosture {
+			c.CurrentPosture = c.MaxPosture
 		}
 	}
-	
-	log.Println("[Creature] spawning in walkable terrain in poisition %s, %s, %s", c.SpawnPoint.X, c.SpawnPoint.Y, c.SpawnPoint.Z)
-	return c.SpawnPoint
+}
+
+func (c *Creature) TickEffects() {
+	if !c.IsAlive {
+		return
+	}
+	now := time.Now()
+	var remainingEffects []consts.ActiveEffect
+
+	for _, eff := range c.ActiveEffects {
+		// Verificar expiração
+		if now.Sub(eff.StartTime) >= eff.Duration {
+			log.Printf("[Effect] Creature %s: efeito %s expirou.", c.Handle.String(), eff.Type)
+			continue
+		}
+
+		// Processamento de efeito contínuo (DOT, Regen, etc)
+		if now.Sub(eff.LastTickTime) >= eff.TickInterval {
+			switch eff.Type {
+			case consts.EffectPoison, consts.EffectBurn:
+				c.HP -= eff.Power
+				log.Printf("[Effect] Creature %s sofreu %d de %s. HP atual: %d", c.Handle.String(), eff.Power, eff.Type, c.HP)
+				if c.HP <= 0 && c.IsAlive {
+					c.ChangeAIState(consts.AIStateDead)
+					log.Printf("[Effect] Creature %s morreu por efeito %s", c.Handle.String(), eff.Type)
+				}
+
+			case consts.EffectRegen:
+				c.HP += eff.Power
+				log.Printf("[Effect] Creature %s curou %d por %s. HP atual: %d", c.Handle.String(), eff.Power, eff.Type, c.HP)
+			}
+
+			eff.LastTickTime = now
+		}
+
+		// Controle de CC (Stun, Slow etc)
+		if eff.Type == consts.EffectStun {
+			// Exemplo: podemos impedir ações dentro do ProcessAI
+		}
+
+		remainingEffects = append(remainingEffects, eff)
+	}
+
+	c.ActiveEffects = remainingEffects
+}
+
+func (c *Creature) TickNeeds() {
+	ModifyNeed(c, consts.NeedHunger, 0.007) // 0 → 50 em ~2 horas reais
+	ModifyNeed(c, consts.NeedThirst, 0.008) // ligeiramente mais rápida
+	ModifyNeed(c, consts.NeedSleep, 0.004)  // mais lenta
 }
 
 func IsTerrainWalkable(pos position.Position) bool {
@@ -213,7 +349,7 @@ func IsTerrainWalkable(pos position.Position) bool {
 func CanSeePlayer(c *Creature, players []*player.Player) bool {
 	for _, p := range players {
 		toPlayer := position.Vector2D{
-			X: p.Position.X - c.Position.X,
+			X: p.Position.FastGlobalX() - c.Position.FastGlobalX(),
 			Y: p.Position.Z - c.Position.Z,
 		}
 		distance := toPlayer.Magnitude()
@@ -242,76 +378,53 @@ func CanHearPlayer(c *Creature, players []*player.Player) bool {
 	return false
 }
 
+var aiStateToAction = map[consts.AIState]consts.CreatureAction{
+	consts.AIStateIdle:   consts.ActionIdle,
+	consts.AIStateAlert:  consts.ActionIdle,
+	consts.AIStateAttack: consts.ActionAttack,
+	consts.AIStateDead:   consts.ActionDie,
+	// consts.AIStateStaggered: pode ser adicionado se necessário
+}
 
-
-func (c *Creature) TickPosture() {
-	if c.IsPostureBroken {
-		if time.Now().Unix()-c.TimePostureBroken >= int64(c.PostureBreakDurationSec) {
-			c.IsPostureBroken = false
-			c.CurrentPosture = c.MaxPosture
-			c.ChangeAIState(AIStateIdle)
-			log.Printf("[Creature %s] Posture recuperada.", c.ID)
-		}
-	} else if c.CurrentPosture < c.MaxPosture {
-		c.CurrentPosture += c.PostureRegenRate
-		if c.CurrentPosture > c.MaxPosture {
-			c.CurrentPosture = c.MaxPosture
-		}
+func (c *Creature) SetAction(action consts.CreatureAction) {
+	if c.CurrentAction != action {
+		c.CurrentAction = action
+		log.Printf("[Creature] %s (%s) ação definida para %s", c.Handle.String(), c.PrimaryType, action)
 	}
 }
 
-func (c *Creature) ApplyPostureDamage(amount float64) {
-	if c.IsPostureBroken || !c.IsAlive {
+func (c *Creature) ChangeAIState(newState consts.AIState) {
+	if c.AIState == newState {
 		return
 	}
 
-	c.CurrentPosture -= amount
-	if c.CurrentPosture <= 0 {
-		c.CurrentPosture = 0
-		c.IsPostureBroken = true
-		c.TimePostureBroken = time.Now().Unix()
-		c.ChangeAIState(AIStateStaggered) // Certifique-se de ter esse estado no type.go
-		log.Printf("[Creature %s] Posture quebrada! Entrando em stagger.", c.ID)
-	}
-}
-
-func (c *Creature) SetAction(action CreatureAction) {
-	c.CurrentAction = action
-	log.Printf("[Creature %s] Action set to: %s", c.ID, action)
-}
-
-func (c *Creature) ChangeAIState(newState AIState) {
-	log.Printf("[Creature %s] AI State mudou: %s → %s", c.ID, c.AIState, newState)
+	log.Printf("[Creature] %s (%s) AI State mudou: %s → %s", c.Handle.String(), c.PrimaryType, c.AIState, newState)
 	c.AIState = newState
 	c.LastStateChange = time.Now()
 
-	switch newState {
-	case AIStateIdle:
-		c.SetAction(ActionIdle)
-	case AIStateAlert:
-		c.SetAction(ActionIdle)
-	case AIStateAttack:
-		c.SetAction(ActionAttack)
-	case AIStateDead:
-		c.SetAction(ActionDie)
+	if act, ok := aiStateToAction[newState]; ok {
+		c.SetAction(act)
+	}
+
+	if newState == consts.AIStateDead {
 		c.IsAlive = false
 		c.IsCorpse = true
 		c.TimeOfDeath = time.Now()
-	case AIStateStaggered:
-		// Lógica para stagger
 	}
+
+	// lógica de stagger pode ser inserida aqui
 }
 
-func (c *Creature) GenerateRandomCombo(comboAction CreatureAction) {
-	possibleSkills := []CreatureAction{
-		ActionSkill1,
-		ActionSkill2,
-		ActionSkill3,
-		ActionSkill4,
-		ActionSkill5,
+func (c *Creature) GenerateRandomCombo(comboAction consts.CreatureAction) {
+	possibleSkills := []consts.CreatureAction{
+		consts.ActionSkill1,
+		consts.ActionSkill2,
+		consts.ActionSkill3,
+		consts.ActionSkill4,
+		consts.ActionSkill5,
 	}
 
-	var combo []CreatureAction
+	var combo []consts.CreatureAction
 	numSkillsInCombo := rand.Intn(4) + 2
 
 	for i := 0; i < numSkillsInCombo; i++ {
@@ -320,70 +433,20 @@ func (c *Creature) GenerateRandomCombo(comboAction CreatureAction) {
 	}
 
 	if c.DynamicCombos == nil {
-		c.DynamicCombos = make(map[CreatureAction][]CreatureAction)
+		c.DynamicCombos = make(map[consts.CreatureAction][]consts.CreatureAction)
 	}
 
 	c.DynamicCombos[comboAction] = combo
-	log.Printf("[Creature %s] Novo combo gerado para %s: %v", c.ID, comboAction, combo)
+	log.Printf("[Creature %s] Novo combo gerado para %s: %v", c.Handle.String(), comboAction, combo)
 }
 
 func (c *Creature) IsQuestOnly() bool {
 	return strings.TrimSpace(c.OwnerPlayerID) != ""
 }
 
-func (c *Creature) ApplyEffect(effect ActiveEffect) {
+func (c *Creature) ApplyEffect(effect consts.ActiveEffect) {
 	c.ActiveEffects = append(c.ActiveEffects, effect)
-	log.Printf("[Creature %s] recebeu efeito: %s", c.ID, effect.Type)
-}
-
-func (c *Creature) TickEffects() {
-	now := time.Now()
-	var remainingEffects []ActiveEffect
-
-	for _, eff := range c.ActiveEffects {
-		// Verificar expiração
-		if now.Sub(eff.StartTime) >= eff.Duration {
-			log.Printf("[Effect] Creature %s: efeito %s expirou.", c.ID, eff.Type)
-			continue
-		}
-
-		// Processamento de efeito contínuo (DOT, Regen, etc)
-		if now.Sub(eff.LastTickTime) >= eff.TickInterval {
-			switch eff.Type {
-			case EffectPoison, EffectBurn:
-				c.HP -= eff.Power
-				log.Printf("[Effect] Creature %s sofreu %d de %s. HP atual: %d", c.ID, eff.Power, eff.Type, c.HP)
-				if c.HP <= 0 && c.IsAlive {
-					c.ChangeAIState(AIStateDead)
-					log.Printf("[Effect] Creature %s morreu por efeito %s", c.ID, eff.Type)
-				}
-
-			case EffectRegen:
-				c.HP += eff.Power
-				log.Printf("[Effect] Creature %s curou %d por %s. HP atual: %d", c.ID, eff.Power, eff.Type, c.HP)
-			}
-
-			eff.LastTickTime = now
-		}
-
-		// Controle de CC (Stun, Slow etc)
-		if eff.Type == EffectStun {
-			// Exemplo: podemos impedir ações dentro do ProcessAI
-		}
-
-		remainingEffects = append(remainingEffects, eff)
-	}
-
-	c.ActiveEffects = remainingEffects
-}
-
-func DebugPrintCreatures() {
-	for _, c := range creatures {
-		fmt.Printf(
-			"Creature: %s, Type: %s, Level: %s, AIState: %s, HP: %d, Action: %s, Pos: (%.2f, %.2f, %.2f), Posture: %.1f/%.1f\n",
-			c.ID, c.Types, c.Level, c.AIState, c.HP, c.CurrentAction, c.Position.X, c.Position.Y, c.Position.Z, c.CurrentPosture, c.MaxPosture,
-		)
-	}
+	log.Printf("[Creature %s] recebeu efeito: %s", c.Handle.String(), effect.Type)
 }
 
 func (c *Creature) WasRecentlyAttacked() bool {
@@ -391,37 +454,16 @@ func (c *Creature) WasRecentlyAttacked() bool {
 }
 
 // --- Função FindByID ---
-func FindByID(creatures []*model.Creature, id string) *model.Creature {
+func FindByHandleID(creatures []*Creature, id string) *Creature {
 	for _, c := range creatures {
-		if c.ID == id {
+		if c.Handle.ID == id {
 			return c
 		}
 	}
 	return nil
 }
 
-// --- Função CanSeeOtherCreatures ---
-func CanSeeOtherCreatures(c *Creature, creatures []*Creature) bool {
-	// Exemplo simples só para compilar
-	return len(creatures) > 0
-}
-
-// --- Função CanHearOtherCreatures ---
-func CanHearOtherCreatures(c *Creature, creatures []*Creature) bool {
-	// Exemplo simples só para compilar
-	return len(creatures) > 0
-}
-
-func (c *Creature) GetNeedValue(needType NeedType) float64 {
-	for _, n := range c.Needs {
-		if n.Type == needType {
-			return n.Value
-		}
-	}
-	return 0
-}
-
-func (c *Creature) HasTag(tag CreatureTag) bool {
+func (c *Creature) HasTag(tag consts.CreatureTag) bool {
 	for _, t := range c.Tags {
 		if t == tag {
 			return true
@@ -430,31 +472,7 @@ func (c *Creature) HasTag(tag CreatureTag) bool {
 	return false
 }
 
-func (c *Creature) SetNeedValue(needType NeedType, value float64) {
-	for i := range c.Needs {
-		if c.Needs[i].Type == needType {
-			c.Needs[i].Value = value
-			return
-		}
-	}
-}
-
-func (c *Creature) ModifyNeed(needType NeedType, amount float64) {
-	for i := range c.Needs {
-		if c.Needs[i].Type == needType {
-			c.Needs[i].Value += amount
-			if c.Needs[i].Value < 0 {
-				c.Needs[i].Value = 0
-			}
-			if c.Needs[i].Value > 100 {
-				c.Needs[i].Value = 100
-			}
-			break
-		}
-	}
-}
-
-func (c *Creature) HasType(t CreatureType) bool {
+func (c *Creature) HasType(t consts.CreatureType) bool {
 	for _, ct := range c.Types {
 		if ct == t {
 			return true
@@ -468,8 +486,12 @@ func (c *Creature) Respawn() {
 	c.IsAlive = true
 	c.Position = c.GenerateSpawnPosition()
 	c.TimeOfDeath = time.Time{} // Zera o campo
+	c.LastThreatSeen = time.Time{}
 	c.ClearAggro()
 	c.ClearCooldowns()
+
+	c.Generation++
+	c.Handle = handle.NewEntityHandle(lib.NewUUID(), c.Generation)
 	// Pode adicionar mais resets aqui depois
 }
 
@@ -481,118 +503,201 @@ func (c *Creature) ClearCooldowns() {
 	}
 }
 
-func (c *Creature) AddThreat(targetID string, amount float64, source, action string) {
+// --- THREAT SYSTEM ---
+
+// ----------------------
+// AGGRO SYSTEM (HANDLE-BASED)
+// ----------------------
+
+func (c *Creature) AddThreat(targetHandle handle.EntityHandle, amount float64, source, action string) {
 	if c.AggroTable == nil {
-		c.AggroTable = make(map[string]*aggro.AggroEntry)
+		c.AggroTable = make(map[handle.EntityHandle]*aggro.AggroEntry)
 	}
 
-	entry, exists := c.AggroTable[targetID]
+	entry, exists := c.AggroTable[targetHandle]
 	if !exists {
 		entry = &aggro.AggroEntry{
-			TargetID: targetID,
+			TargetHandle: targetHandle,
 		}
-		c.AggroTable[targetID] = entry
+		c.AggroTable[targetHandle] = entry
 	}
 
 	entry.ThreatValue += amount
 	entry.LastDamageTime = time.Now()
 	entry.AggroSource = source
 	entry.LastAction = action
+
+	log.Printf("[Aggro] %s recebeu %.2f de ameaça de %s (source: %s, action: %s). Ameaça total: %.2f",
+		c.Handle.ID, amount, targetHandle.ID, source, action, entry.ThreatValue)
 }
 
-func (c *Creature) GetHighestThreatTarget() string {
-	var topTarget string
+func (c *Creature) GetHighestThreatTarget() handle.EntityHandle {
+	var topHandle handle.EntityHandle
 	var topThreat float64
 
-	for targetID, entry := range c.AggroTable {
+	for h, entry := range c.AggroTable {
 		if entry.ThreatValue > topThreat {
 			topThreat = entry.ThreatValue
-			topTarget = targetID
+			topHandle = h
 		}
 	}
 
-	return topTarget
+	return topHandle
 }
 
 func (c *Creature) ClearAggro() {
 	if c.AggroTable != nil {
-		for targetID := range c.AggroTable {
-			delete(c.AggroTable, targetID)
+		for h := range c.AggroTable {
+			delete(c.AggroTable, h)
 		}
+		log.Printf("[Aggro] %s limpou toda tabela de ameaça", c.Handle.ID)
 	}
 }
-
 
 func (c *Creature) ReduceThreatOverTime(decayRatePerSecond float64) {
 	now := time.Now()
 
-	for targetID, entry := range c.AggroTable {
+	for h, entry := range c.AggroTable {
 		elapsed := now.Sub(entry.LastDamageTime).Seconds()
 		decay := decayRatePerSecond * elapsed
 
 		entry.ThreatValue -= decay
 		if entry.ThreatValue <= 0 {
-			delete(c.AggroTable, targetID)
-			log.Printf("[Aggro] Creature %s perdeu o aggro de %s por decay.", c.ID, targetID)
-			// No futuro: Aqui você pode disparar um OnThreatLost
+			delete(c.AggroTable, h)
+			log.Printf("[Aggro] %s perdeu o aggro de %s por decay.", c.Handle.ID, h.ID)
+			// Futuro: disparar OnThreatLost
 		} else {
 			entry.LastDamageTime = now
 		}
 	}
 }
 
-func (c *Creature) MoveTowards(targetPos position.Position, speed float64) {
-	dx := targetPos.X - c.Position.X
-	dz := targetPos.Z - c.Position.Z
-	dist := math.Sqrt(dx*dx + dz*dz)
+func (c *Creature) CheckIsAlive() bool {
+	return c.IsAlive
+}
 
-	if dist < 0.01 {
+func (c *Creature) GetCurrentSpeed() float64 {
+	switch c.CurrentAction {
+	case consts.ActionRun:
+		return c.WalkSpeed
+	default:
+		return c.RunSpeed
+	}
+}
+
+func (c *Creature) TakeDamage(amount int) {
+	if !c.IsAlive {
 		return
 	}
 
-	// Atualiza a direção que a criatura está olhando
-	c.FacingDirection = position.Vector2D{
-		X: dx / dist,
-		Y: dz / dist,
+	finalDamage := int(math.Round(float64(amount) * (1.0 - c.PhysicalDefense)))
+	if finalDamage <= 0 {
+		finalDamage = 1
 	}
 
-	moveX := (dx / dist) * speed
-	moveZ := (dz / dist) * speed
+	c.HP -= finalDamage
+	c.LastAttackedTime = time.Now()
 
-	c.Position.X += moveX
-	c.Position.Z += moveZ
+	log.Printf("[Creature %s] sofreu %d de dano. HP restante: %d", c.Handle.String(), finalDamage, c.HP)
 
-	log.Printf("[AI] %s movendo-se em direção a (%.2f, %.2f)", c.ID, targetPos.X, targetPos.Z)
+	if c.HP <= 0 {
+		c.ChangeAIState(consts.AIStateDead)
+		log.Printf("[Creature %s] morreu após receber dano.", c.Handle.String())
+	}
+
+	if c.HP > 0 && !c.IsHostile && c.HP < c.MaxHP && c.AIState != consts.AIStateFleeing && c.AIState != consts.AIStateDead {
+		log.Printf("[Creature %s] recebeu dano e vai fugir!", c.Handle.String())
+		c.ChangeAIState(consts.AIStateFleeing)
+	}
 }
 
-
-func (c *Creature) GetPosition() position.Position {
-	return c.Position
+func (c *Creature) GetFacingDirection() position.Vector2D {
+	return c.FacingDirection
 }
 
-func (c *Creature) GetID() string {
-	return c.ID
-}
+// creature/creature.go
 
-func FindTargetByID(id string, creatures []*Creature, players []*player.Player) model.Targetable {
-	for _, c := range creatures {
-		if c.ID == id {
-			return c
+func (c *Creature) GetBestTarget(creatures []*Creature, players []*player.Player) model.Targetable {
+	bestHandle := c.GetHighestThreatTarget()
+	if !bestHandle.Equals(handle.EntityHandle{}) {
+		// Procura entre criaturas
+		for _, c2 := range creatures {
+			if c2.Handle.Equals(bestHandle) {
+				return c2
+			}
+		}
+		// Procura entre jogadores
+		for _, p := range players {
+			if p.Handle.Equals(bestHandle) {
+				return p
+			}
 		}
 	}
+
+	// Se não houver aggro válido, busca o mais próximo
+	var closest model.Targetable
+	var minDist float64 = math.MaxFloat64
+
 	for _, p := range players {
-		if p.ID == id {
-			return p
+		if !p.CheckIsAlive() {
+			continue
+		}
+		dist := position.CalculateDistance(c.Position, p.Position)
+		if dist < minDist {
+			minDist = dist
+			closest = p
 		}
 	}
-	return nil
+
+	for _, c2 := range creatures {
+		if c2.Handle.Equals(c.Handle) || !c2.IsAlive {
+			continue
+		}
+		dist := position.CalculateDistance(c.Position, c2.Position)
+		if dist < minDist {
+			minDist = dist
+			closest = c2
+		}
+	}
+
+	return closest
 }
 
-func FindServiceByID(creatures []*Creature, id string) *Creature {
-	for _, c := range creatures {
-		if c.ID == id {
-			return c
+func (c *Creature) IsHungry() bool {
+	for _, n := range c.Needs {
+		if n.Type == consts.NeedHunger && n.Value >= n.Threshold {
+			return true
 		}
 	}
-	return nil
+	return false
 }
+
+func (c *Creature) ClearTargetHandles() {
+	if !c.TargetCreatureHandle.Equals(handle.EntityHandle{}) || !c.TargetPlayerHandle.Equals(handle.EntityHandle{}) {
+		log.Printf("[Creature] [%s (%s)] limpando alvos: criatura=%s, jogador=%s",
+			c.Handle.ID, c.PrimaryType, c.TargetCreatureHandle.ID, c.TargetPlayerHandle.ID)
+	}
+	c.TargetCreatureHandle = handle.EntityHandle{}
+	c.TargetPlayerHandle = handle.EntityHandle{}
+}
+
+func (c *Creature) IsCurrentlyCrouched() bool {
+	return c.IsCrouched
+}
+
+func (c *Creature) GetHitboxRadius() float64 {
+	return c.HitboxRadius
+}
+
+func (c *Creature) GetDesiredBufferDistance() float64 {
+	return c.DesiredBufferDistance
+}
+
+func (c *Creature) ConsumeCorpse() {
+	c.IsCorpse = false // já indica que não é mais válido como corpo
+	// Aqui você pode acionar a remoção do spatial grid se tiver essa função
+	spatial.GlobalGrid.Remove(c)
+	log.Printf("[Creature] %s (%s) foi consumido e removido do mundo.", c.Handle.String(), c.PrimaryType)
+}
+
+func (c *Creature) IsCreature() bool { return true }

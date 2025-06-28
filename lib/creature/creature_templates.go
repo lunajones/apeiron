@@ -1,23 +1,25 @@
 package creature
 
 import (
-	"github.com/lunajones/apeiron/service/creature/old_china/mob"
+	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/creature/old_china/mob"
 )
 
-
-var templateRegistry = map[int]func() *creature.Creature{
-	1001: mob.NewChineseSoldier,
-	1002: mob.NewChineseWolf,
-	1003: mob.NewChineseArcher,
-	1004: mob.NewChineseSpearman,
-	1005: mob.NewTerrifiedConcubine,
+// Agora cada função recebe posição e raio de spawn
+var templateRegistry = map[int]func(position.Position, float64) *creature.Creature{
+	1001: func(pos position.Position, radius float64) *creature.Creature { return mob.NewChineseSoldier() }, // ← soldados ainda não precisam disso
+	1002: func(pos position.Position, radius float64) *creature.Creature { return mob.NewSteppeWolf(pos, radius) },
+	1003: func(pos position.Position, radius float64) *creature.Creature { return mob.NewChineseArcher() },
+	1004: func(pos position.Position, radius float64) *creature.Creature { return mob.NewChineseSpearman() },
+	1005: func(pos position.Position, radius float64) *creature.Creature { return mob.NewTerrifiedConcubine() },
+	1006: func(pos position.Position, radius float64) *creature.Creature { return mob.NewMountainRabbit(pos, radius) },
 }
 
-func CreateFromTemplate(templateID int) *creature.Creature {
+func CreateFromTemplate(templateID int, spawnPoint position.Position, spawnRadius float64) *creature.Creature {
 	createFunc, exists := templateRegistry[templateID]
 	if !exists {
 		return nil
 	}
-	return createFunc()
+	return createFunc(spawnPoint, spawnRadius)
 }

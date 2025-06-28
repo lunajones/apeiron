@@ -3,9 +3,11 @@ package node
 import (
 	"log"
 
+	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
+	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
 type DefendRecentNode struct{}
@@ -13,41 +15,62 @@ type DefendRecentNode struct{}
 func (n *DefendRecentNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	svcCtx, ok := ctx.(dynamic_context.AIServiceContext)
 	if !ok {
-		log.Printf("[AI] Contexto inválido em DefendRecentNode para %s", c.ID)
+		log.Printf("[AI] [%s (%s)] contexto inválido em DefendRecentNode", c.Handle.ID, c.PrimaryType)
 		return core.StatusFailure
 	}
 
-	log.Printf("[AI] %s executando DefendRecentNode", c.ID)
-
 	if len(c.AggroTable) == 0 {
-		log.Printf("[AI] %s não possui aggro registrado", c.ID)
 		return core.StatusFailure
 	}
 
 	var (
-		bestTarget *creature.Creature
-		highestAggro float64
+		bestTarget    *creature.Creature
+		highestThreat float64
 	)
 
-	for targetID, entry := range c.AggroTable {
-		target := svcCtx.FindCreatureByID(targetID)
+	nearby := svcCtx.GetServiceCreatures(c.Position, c.DetectionRadius)
+
+	for _, entry := range c.AggroTable {
+		target := svcCtx.FindCreatureByHandle(entry.TargetHandle)
 		if target == nil || !target.IsAlive {
 			continue
 		}
 
-		if entry.Aggro > highestAggro {
+		// Verifica se está realmente por perto
+		foundNearby := false
+		for _, n := range nearby {
+			if n.GetHandle().Equals(target.GetHandle()) {
+				foundNearby = true
+				break
+			}
+		}
+		if !foundNearby {
+			continue
+		}
+
+		if entry.ThreatValue > highestThreat {
 			bestTarget = target
-			highestAggro = entry.Aggro
+			highestThreat = entry.ThreatValue
 		}
 	}
 
 	if bestTarget == nil {
-		log.Printf("[AI] %s não encontrou inimigos válidos para se defender", c.ID)
+		c.TargetCreatureHandle = handle.EntityHandle{}
 		return core.StatusFailure
 	}
 
-	c.TargetCreatureID = bestTarget.ID
-	c.ChangeAIState(creature.AIStateCombat)
-	log.Printf("[AI] %s decidiu se defender contra %s com aggro %.2f", c.ID, bestTarget.ID, highestAggro)
+	c.TargetCreatureHandle = bestTarget.GetHandle()
+	c.ChangeAIState(consts.AIStateCombat)
+
+	log.Printf("[AI] [%s (%s)] defendendo-se de [%s (%s)] (ameaça: %.2f)",
+		c.Handle.ID, c.PrimaryType,
+		bestTarget.Handle.ID, bestTarget.PrimaryType,
+		highestThreat,
+	)
+
 	return core.StatusSuccess
+}
+
+func (n *DefendRecentNode) Reset() {
+	// Esse node não tem estado interno, então o Reset não faz nada
 }

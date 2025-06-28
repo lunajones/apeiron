@@ -1,4 +1,4 @@
-package player
+package consts
 
 type PlayerRole string
 

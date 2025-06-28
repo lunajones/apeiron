@@ -1,4 +1,4 @@
-package creature
+package consts
 
 import (
 	"time"

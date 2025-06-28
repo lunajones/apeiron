@@ -6,4 +6,5 @@ import (
 
 type BehaviorNode interface {
 	Tick(c *creature.Creature, ctx interface{}) interface{}
+	Reset()
 }

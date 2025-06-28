@@ -21,3 +21,10 @@ func (n *SelectorNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	}
 	return StatusFailure
 }
+
+func (n *SelectorNode) Reset() {
+	// Se quiser, pode iterar e resetar os filhos também
+	for _, child := range n.Children {
+		child.Reset()
+	}
+}
