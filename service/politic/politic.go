@@ -2,7 +2,6 @@ package politic
 
 import (
 	"github.com/lunajones/apeiron/service/politic/consts"
-	"github.com/lunajones/apeiron/lib/position"
 )
 
 var CityRelations = map[string]map[string]consts.RelationStatus{

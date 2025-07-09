@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
 type EvaluateNeedsNode struct {
@@ -33,25 +33,50 @@ func (n *EvaluateNeedsNode) Tick(c *creature.Creature, ctx interface{}) interfac
 		if need.Value < need.Threshold {
 			continue
 		}
+
 		switch need.Type {
 		case consts.NeedHunger:
-			log.Printf("[AI] [%s (%s)] com fome (%.2f ≥ %.2f), AIState: SearchFood", c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			log.Printf("[AI] [%s (%s)] com fome (%.2f ≥ %.2f), mudando para AIStateSearchFood",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
 			c.ChangeAIState(consts.AIStateSearchFood)
+			return core.StatusSuccess
+
+		case consts.NeedThirst:
+			log.Printf("[AI] [%s (%s)] com sede (%.2f ≥ %.2f), mudando para AIStateSearchWater",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			c.ChangeAIState(consts.AIStateSearchWater)
 			return core.StatusSuccess
 
 		case consts.NeedSleep:
 			if !c.LastThreatSeen.IsZero() && time.Since(c.LastThreatSeen) < 15*time.Second {
-				log.Printf("[AI] [%s (%s)] sono adiado: ameaça vista há %.1fs", c.Handle.String(), c.PrimaryType, time.Since(c.LastThreatSeen).Seconds())
+				log.Printf("[AI] [%s (%s)] sono adiado: ameaça vista há %.1fs",
+					c.Handle.String(), c.PrimaryType, time.Since(c.LastThreatSeen).Seconds())
 				return core.StatusFailure
 			}
-			log.Printf("[AI] [%s (%s)] com sono (%.2f ≥ %.2f), AIState: Drowsy", c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			log.Printf("[AI] [%s (%s)] com sono (%.2f ≥ %.2f), mudando para AIStateDrowsy",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
 			c.ChangeAIState(consts.AIStateDrowsy)
 			return core.StatusSuccess
 
-		case consts.NeedThirst:
-			log.Printf("[AI] [%s (%s)] com sede (%.2f ≥ %.2f), AIState: SearchWater", c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
-			c.ChangeAIState(consts.AIStateSearchWater)
-			return core.StatusSuccess
+		case consts.NeedSocial:
+			log.Printf("[AI] [%s (%s)] necessidade social detectada (%.2f ≥ %.2f), estado não implementado",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			return core.StatusFailure
+
+		case consts.NeedFuck:
+			log.Printf("[AI] [%s (%s)] necessidade de acasalamento detectada (%.2f ≥ %.2f), estado não implementado",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			return core.StatusFailure
+
+		case consts.NeedKill:
+			log.Printf("[AI] [%s (%s)] necessidade de matar detectada (%.2f ≥ %.2f), estado não implementado",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			return core.StatusFailure
+
+		case consts.NeedDrink:
+			log.Printf("[AI] [%s (%s)] necessidade de beber detectada (%.2f ≥ %.2f), estado não implementado",
+				c.Handle.String(), c.PrimaryType, need.Value, need.Threshold)
+			return core.StatusFailure
 		}
 	}
 
@@ -80,5 +105,5 @@ func (n *EvaluateNeedsNode) indexOf(t consts.NeedType) int {
 }
 
 func (n *EvaluateNeedsNode) Reset() {
-	// Não há estado interno para resetar neste node
+	// Noop: nenhum estado interno a resetar
 }

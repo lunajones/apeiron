@@ -3,40 +3,31 @@ package world
 import (
 	"time"
 
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
-	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/player"
-	"github.com/lunajones/apeiron/service/world/spatial"
 	"github.com/lunajones/apeiron/service/zone"
 )
 
-var Players []*player.Player
-
 func TickAll() {
+	const targetFPS = 60
+	const targetDelta = 1.0 / float64(targetFPS)
+
+	var lastTick = time.Now()
+
 	for {
-		// Exporte o grid de pathfinding
-		grid := spatial.GlobalGrid.ExportGridForPathfinding(50, 50, 1.0) // ajuste os valores conforme seu mapa
-
-		svcCtx := &dynamic_context.AIServiceContext{
-			PathfindingGrid: grid,
+		now := time.Now()
+		elapsed := now.Sub(lastTick).Seconds()
+		if elapsed > 0.1 {
+			elapsed = 0.1
 		}
+		lastTick = now
 
 		for _, z := range zone.Zones {
-			z.Tick(svcCtx)
-
-			for _, c := range z.Creatures {
-				if !c.Position.Equals(c.LastPosition) {
-					spatial.GlobalGrid.UpdateEntity(c)
-				}
-			}
+			z.Tick(elapsed)
 		}
 
-		var allCreatures []*creature.Creature
-		for _, z := range zone.Zones {
-			allCreatures = append(allCreatures, z.Creatures...)
+		sleepTime := targetDelta - time.Since(now).Seconds()
+		if sleepTime > 0 {
+			time.Sleep(time.Duration(sleepTime * float64(time.Second)))
 		}
-		PrintWorldGridAAA(allCreatures)
 
-		time.Sleep(1 * time.Second)
 	}
 }

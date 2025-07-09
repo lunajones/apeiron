@@ -8,11 +8,12 @@ import (
 )
 
 type SpawnDefinition struct {
-	TemplateID     int               `json:"TemplateID"`
-	Position       position.Position `json:"Position"`
-	Radius         float64           `json:"Radius"`
-	Count          int               `json:"Count"`
-	RespawnTimeSec int               `json:"RespawnTimeSec"`
+	TemplateID       int               `json:"TemplateID"`
+	Position         position.Position `json:"Position"`
+	Radius           float64           `json:"Radius"`
+	Count            int               `json:"Count"`
+	RespawnTimeSec   int               `json:"RespawnTimeSec"`
+	UseNavMeshCenter bool              `json:"UseNavMeshCenter"` // novo campo opcional no JSON
 }
 
 func LoadSpawnsForZone(filePath string) ([]SpawnDefinition, error) {

@@ -2,45 +2,74 @@ package physics
 
 import (
 	"log"
+	"math"
 
+	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/navmesh"
 	"github.com/lunajones/apeiron/lib/position"
 )
 
-// ApplyPhysics aplica física básica: atualiza velocidade e posição, lida com colisão.
-func ApplyPhysics(mov model.Movable, velocity *position.Vector3D, acceleration position.Vector3D, deltaTime float64, checkCollision bool) {
+func ApplyPhysics(mov model.Movable, velocity *position.Vector3D, acceleration position.Vector3D, deltaTime float64, checkCollision bool, mesh *navmesh.NavMesh, all []model.Targetable) bool {
 	if deltaTime <= 0 {
-		return
+		return false
 	}
 
-	// Atualiza velocidade: v = v0 + a * t
-	velocity.X += acceleration.X * deltaTime
-	velocity.Y += acceleration.Y * deltaTime
-	velocity.Z += acceleration.Z * deltaTime
+	velocity.X = acceleration.X
+	velocity.Y = acceleration.Y
+	velocity.Z = acceleration.Z
 
-	// Calcula novo passo: s = s0 + v * t
 	currentPos := mov.GetPosition()
-	newX := currentPos.FastGlobalX() + velocity.X*deltaTime
-	newY := currentPos.FastGlobalY() + velocity.Y*deltaTime
+	newX := currentPos.X + velocity.X*deltaTime
 	newZ := currentPos.Z + velocity.Z*deltaTime
-	newPos := position.FromGlobal(newX, newY, newZ)
+	newY := currentPos.Y + velocity.Y*deltaTime
+	newPos := position.Position{X: newX, Y: newY, Z: newZ}
 
-	// Checa colisão se necessário
-	if checkCollision && CheckCollision(newPos, mov.GetHitboxRadius()) {
-		log.Printf("[PHYSICS] [%s] colisão detectada em (%.2f, %.2f, %.2f), movimento bloqueado", mov.GetHandle().ID, newPos.FastGlobalX(), newPos.FastGlobalY(), newPos.Z)
-		velocity.Zero()
-		return
+	if checkCollision {
+		if CheckCollision(newPos, mov.GetHitboxRadius(), mov.GetHandle(), mesh, all) {
+			velocity.Zero()
+			return true
+		}
 	}
 
-	// Aplica nova posição
 	mov.SetPosition(newPos)
 
-	// Atualiza direção se estiver se movendo
-	mag := velocity.Magnitude()
-	if mag > 0 {
-		mov.SetFacingDirection(position.Vector2D{
-			X: velocity.X / mag,
-			Y: velocity.Y / mag,
-		})
+	if velocity.X != 0 || velocity.Z != 0 {
+		mag := math.Sqrt(velocity.X*velocity.X + velocity.Z*velocity.Z)
+		if mag > 0 {
+			mov.SetFacingDirection(position.Vector2D{
+				X: velocity.X / mag,
+				Z: velocity.Z / mag,
+			})
+		}
 	}
+
+	// log.Printf("[PHYSICS] [%s] ApplyPhysics aplicou: newPos=(%.2f, %.2f, %.2f)", mov.GetHandle().ID, newX, newY, newZ)
+	return false
+}
+
+func CheckCollision(newPos position.Position, radius float64, selfHandle handle.EntityHandle, mesh *navmesh.NavMesh, all []model.Targetable) bool {
+	if mesh != nil && !mesh.IsWalkable(newPos) {
+		log.Printf("[PHYSICS] [%s] colisão NavMesh em (%.2f, %.2f)", selfHandle.ID, newPos.X, newPos.Z)
+		return true
+	}
+
+	for _, t := range all {
+		if t.GetHandle().Equals(selfHandle) {
+			continue
+		}
+		if !t.IsAlive() {
+			continue
+		}
+
+		dx := newPos.X - t.GetLastPosition().X
+		dz := newPos.Z - t.GetLastPosition().Z
+		dist := math.Sqrt(dx*dx + dz*dz)
+
+		if dist < radius+t.GetHitboxRadius() {
+			log.Printf("[PHYSICS] [%s] colisão com entidade %s", selfHandle.ID, t.GetHandle().ID)
+			return true
+		}
+	}
+	return false
 }

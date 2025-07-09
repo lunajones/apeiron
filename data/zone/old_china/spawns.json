@@ -1,16 +1,23 @@
 [
   {
-    "TemplateID": 1002, 
-    "Position": { "X": 10.0, "Y": 0.0, "Z": 0.0 },
+    "TemplateID": 1002,
+    "UseNavMeshCenter": true,
     "Radius": 3,
     "Count": 1,
     "RespawnTimeSec": 45
   },
   {
-    "TemplateID": 1006, 
-    "Position": { "X": 0.0, "Y": 0.0, "Z": 0.0 },
+    "TemplateID": 1006,
+    "UseNavMeshCenter": true,
     "Radius": 6,
-    "Count": 10,
+    "Count": 0,
+    "RespawnTimeSec": 45
+  },
+  {
+    "TemplateID": 1001,
+    "UseNavMeshCenter": true,
+    "Radius": 6,
+    "Count": 1,
     "RespawnTimeSec": 45
   }
 ]

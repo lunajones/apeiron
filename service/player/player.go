@@ -1,6 +1,11 @@
 package player
 
 import (
+	"log"
+	"math/rand/v2"
+	"time"
+
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/position"
@@ -15,7 +20,6 @@ type Player struct {
 	model.Player
 	CityAffiliation       string
 	Relatives             []*npc.NPC
-	IsPvPEnabled          bool // usado s
 	HitboxRadius          float64
 	DesiredBufferDistance float64
 	Position              position.Position
@@ -25,12 +29,100 @@ type Player struct {
 	EquippedSkills        []string       // IDs das skills equipadas (máximo 6)
 	SkillPoints           int
 	SkillTreeProgress     map[string]int
-	IsAlive               bool
+	Alive                 bool
 	CurrentRole           consts.PlayerRole
 	HP                    int
-	ActiveEffects         []creatureconsts.ActiveEffect
+	ActiveEffects         []constslib.ActiveEffect
 
+	CombatState     constslib.CombatState
 	FacingDirection position.Vector2D
+	Tags            []creatureconsts.CreatureTag
+
+	Needs []constslib.Need
+
+	PvPEnabled bool
+
+	blocking           bool
+	Stamina            float64
+	MaxStamina         float64
+	StaminaRegenPerSec float64
+	DodgeDistance      float64
+	DodgeStaminaCost   float64
+	DodgeDisabledUntil time.Time
+	invulnerableUntil  time.Time
+
+	MaxPosture              float64
+	Posture                 float64
+	PostureRegenRate        float64
+	PostureBroken           bool
+	TimePostureBroken       int64
+	PostureBreakDurationSec int
+}
+
+func (p *Player) InitNeeds() {
+	p.Needs = []constslib.Need{
+		{
+			Type:      constslib.NeedAdvance,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+		{
+			Type:      constslib.NeedGuard,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+		{
+			Type:      constslib.NeedRetreat,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+		{
+			Type:      constslib.NeedProvoke,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+		{
+			Type:      constslib.NeedRecover,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+		{
+			Type:      constslib.NeedPlan,
+			Value:     rand.Float64() * 30,
+			Threshold: 50,
+		},
+	}
+}
+
+// func SpawnPlayer(session *Session, world *World) *Player {
+// 	p := &Player{
+// 		Handle: handle.NewEntityHandle(lib.NewUUID(), 1),
+// 		// ... outros campos obrigatórios para o Player
+// 	}
+
+// 	p.Needs = []constslib.Need{
+// 		{Type: constslib.NeedAdvance, Value: 0, Threshold: 50},
+// 		{Type: constslib.NeedGuard, Value: 0, Threshold: 50},
+// 		{Type: constslib.NeedRetreat, Value: 0, Threshold: 50},
+// 		{Type: constslib.NeedProvoke, Value: 0, Threshold: 50},
+// 		{Type: constslib.NeedRecover, Value: 0, Threshold: 50},
+// 		{Type: constslib.NeedCircle, Value: 0, Threshold: 50},
+// 	}
+
+// 	p.InitNeeds()
+
+// 	world.AddPlayer(p)
+
+// 	return p
+// }
+
+func (p *Player) HasTag(tag creatureconsts.CreatureTag) bool {
+	for _, t := range p.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Player) GetHandle() handle.EntityHandle {
@@ -42,12 +134,8 @@ func (p *Player) GetPosition() position.Position {
 	return p.Position
 }
 
-func (p *Player) GetID() string {
-	return p.ID
-}
-
-func (p *Player) CheckIsAlive() bool {
-	return p.IsAlive
+func (p *Player) IsAlive() bool {
+	return p.Alive
 }
 
 func (p *Player) GetLastPosition() position.Position {
@@ -68,17 +156,17 @@ func (p *Player) GetDesiredBufferDistance() float64 {
 }
 
 func (p *Player) TakeDamage(amount int) {
-	if !p.IsAlive {
+	if !p.Alive {
 		return
 	}
 	p.HP -= amount
 	if p.HP <= 0 {
-		p.IsAlive = false
+		p.Alive = false
 		// Qualquer lógica adicional de morte do player
 	}
 }
 
-func (p *Player) ApplyEffect(effect creatureconsts.ActiveEffect) {
+func (p *Player) ApplyEffect(effect constslib.ActiveEffect) {
 	p.ActiveEffects = append(p.ActiveEffects, effect)
 }
 
@@ -87,3 +175,53 @@ func (p *Player) GetFacingDirection() position.Vector2D {
 }
 
 func (c *Player) IsCreature() bool { return true }
+
+func (c *Player) IsStaticObstacle() bool {
+	return false // criaturas nunca são obstáculo absoluto
+}
+
+func (p *Player) IsHungry() bool {
+	for _, n := range p.Needs {
+		if n.Type == constslib.NeedHunger && n.Value >= n.Threshold {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Player) IsPvPEnabled() bool {
+	return p.PvPEnabled
+}
+
+func (p *Player) IsBlocking() bool {
+	return p.blocking
+}
+
+func (p *Player) SetBlocking(blocking bool) {
+	p.blocking = blocking
+}
+
+func (p *Player) IsInvulnerableNow() bool {
+	return time.Now().Before(p.invulnerableUntil)
+}
+
+func (p *Player) ApplyPostureDamage(amount float64) {
+	if p.PostureBroken || !p.Alive {
+		return
+	}
+
+	p.Posture -= amount
+	if p.Posture <= 0 {
+		p.Posture = 0
+		p.PostureBroken = true
+		p.TimePostureBroken = time.Now().Unix()
+		p.CombatState = constslib.CombatStateStaggered
+		// Exemplo de possível animação: c.SetAnimationState(constslib.AnimationIdle) ou custom para stagger
+		// physics.StartStagger(&c.Stagger, c.TimePostureBroken, float64(c.PostureBreakDurationSec))
+		log.Printf("[Player %s] Posture quebrada! Entrando em stagger.", p.Handle.ID)
+	}
+}
+
+func (p *Player) IsInParryWindow() bool {
+	return true
+}

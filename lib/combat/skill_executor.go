@@ -2,152 +2,278 @@ package combat
 
 import (
 	"log"
+	"math"
 	"time"
 
-	"github.com/lunajones/apeiron/lib/model"
+	constslib "github.com/lunajones/apeiron/lib/consts"
+	"github.com/lunajones/apeiron/lib/model" // adicionado para ApplySkillMovement
+	"github.com/lunajones/apeiron/lib/navmesh"
 	"github.com/lunajones/apeiron/lib/position"
-	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/creature/consts"
-	"github.com/lunajones/apeiron/service/player"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 )
 
-func UseSkill(attacker *creature.Creature, target model.Targetable, targetPos position.Position, skill Skill, creatures []*creature.Creature, players []*player.Player) SkillResult {
-	result := SkillResult{}
-
-	lastUsed, onCooldown := attacker.SkillCooldowns[skill.Action]
-	if onCooldown && time.Since(lastUsed).Seconds() < float64(skill.CooldownSec) {
-		log.Printf("[SkillExecutor] [%s] skill %s em cooldown", attacker.GetHandle().ID, skill.Name)
-		result.WasOnCooldown = true
-		return result
-	}
+func UseSkill(
+	attacker model.Attacker,
+	target model.Targetable,
+	targetPos position.Position,
+	skill *model.Skill,
+	creatures []model.Targetable,
+	players []model.Targetable,
+	navMesh *navmesh.NavMesh,
+	svcCtx *dynamic_context.AIServiceContext,
+) model.SkillResult {
+	result := model.SkillResult{}
 
 	if !skill.GroundTargeted && target != nil {
 		dir := position.Vector2D{
-			X: target.GetPosition().FastGlobalX() - attacker.GetPosition().FastGlobalX(),
-			Y: target.GetPosition().Z - attacker.GetPosition().Z,
+			X: target.GetPosition().X - attacker.GetPosition().X,
+			Z: target.GetPosition().Z - attacker.GetPosition().Z,
 		}
-		attacker.FacingDirection = dir.Normalize()
+		attacker.SetFacingDirection(dir.Normalize())
 	}
 
-	if skill.GroundTargeted && skill.AOE != nil {
-		ApplyAOEDamage(attacker, targetPos, skill, creatures, players)
+	if skill.Movement != nil {
+		if target != nil {
+			attacker.SetSkillMovementState(ApplySkillMovement(attacker, target, skill))
+		} else {
+			log.Printf("[SkillExecutor] [%s] Skill %s requer target para movimento, mas target é nil", attacker.GetHandle().ID, skill.Name)
+		}
+	} else if skill.GroundTargeted && skill.AOE != nil {
+		ApplyAOEDamage(attacker, targetPos, skill, creatures, players, svcCtx)
+		result.Success = true
 	} else if skill.Projectile != nil {
-		SimulateProjectile(attacker, target, targetPos, skill)
+		SimulateProjectile(attacker, target, targetPos, skill, svcCtx)
+		result.Success = true
 	} else {
-		result = ApplyDirectDamage(attacker, target, skill)
+		result = ApplyDirectDamage(attacker, target, skill, svcCtx)
 	}
 
-	attacker.SkillCooldowns[skill.Action] = time.Now()
-	result.Success = true
 	return result
 }
 
-func ApplyDirectDamage(attacker *creature.Creature, target model.Targetable, skill Skill) SkillResult {
-	result := SkillResult{}
+func ApplySkillMovement(
+	attacker model.Attacker,
+	target model.Targetable,
+	skill *model.Skill,
+) *model.SkillMovementState {
+	now := time.Now()
+
+	// Calcula direção até o alvo
+	dirVec := position.NewVector3DFromTo(attacker.GetPosition(), target.GetPosition()).Normalize()
+
+	// Calcula distância final desejada
+	var targetPosAdjusted position.Position
+	if skill.Movement.ExtraDistance != 0 {
+		targetPosAdjusted = attacker.GetPosition().AddVector3D(dirVec.Scale(skill.Movement.ExtraDistance))
+	} else {
+		creatureHitbox := attacker.GetHitboxRadius()
+		targetHitbox := target.GetHitboxRadius()
+		buffer := target.GetDesiredBufferDistance()
+
+		distance := position.CalculateDistance2D(attacker.GetPosition(), target.GetPosition())
+		desiredDistance := distance + creatureHitbox + targetHitbox + buffer
+
+		if desiredDistance > skill.Movement.MaxDistance {
+			desiredDistance = skill.Movement.MaxDistance
+		}
+
+		targetPosAdjusted = attacker.GetPosition().AddVector3D(dirVec.Scale(desiredDistance))
+	}
+
+	finalDir := position.NewVector3DFromTo(attacker.GetPosition(), targetPosAdjusted).Normalize()
+
+	log.Printf(
+		"[LEAP] [%s] Direção=(%.2f,%.2f,%.2f) AlvoFinal=%v",
+		attacker.GetHandle().ID,
+		finalDir.X, finalDir.Y, finalDir.Z,
+		targetPosAdjusted,
+	)
+
+	state := &model.SkillMovementState{
+		Active:    true,
+		StartTime: now,
+		Duration:  time.Duration(skill.Movement.DurationSec * float64(time.Second)),
+		Speed:     skill.Movement.Speed,
+		Direction: finalDir,
+		TargetPos: targetPosAdjusted,
+		Config:    skill.Movement,
+		Skill:     skill, // Caso precise do skill para o Update
+	}
+
+	attacker.SetSkillMovementState(state)
+
+	return state
+}
+
+func UpdateSkillMovement(
+	mov model.Attacker,
+	state *model.SkillMovementState,
+	target model.Targetable,
+	navMesh *navmesh.NavMesh,
+	svcCtx *dynamic_context.AIServiceContext,
+	deltaTime float64,
+) bool {
+	currentPos := mov.GetPosition()
+	distanceToTargetPos := position.CalculateDistance2D(currentPos, state.TargetPos)
+
+	moveDist := state.Speed * deltaTime // ~60fps tick
+	if moveDist > distanceToTargetPos {
+		moveDist = distanceToTargetPos
+	}
+	moveVec := state.Direction.Scale(moveDist)
+	newPos := currentPos.AddVector3D(moveVec)
+
+	mov.SetPosition(newPos)
+
+	realDist := position.CalculateDistance2D(newPos, target.GetPosition())
+	log.Printf("[LEAP-REALDIST] Distância real após avanço: %.2f", realDist)
+
+	if !state.DamageApplied && realDist <= state.Config.MaxDistance {
+
+		ApplyDirectDamage(mov, target, state.Skill, svcCtx)
+		state.DamageApplied = true
+	}
+
+	return state.IsComplete(time.Now(), newPos)
+}
+
+func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *model.Skill, svcCtx *dynamic_context.AIServiceContext) model.SkillResult {
+	result := model.SkillResult{}
 
 	if target == nil || shouldSkipTarget(attacker, target) {
 		return result
 	}
 
-	// Checa invulnerabilidade se for criatura
-	if tgt, ok := target.(*creature.Creature); ok && tgt.Invincibility.IsInvincible {
-		log.Printf("[SkillExecutor] [%s] tentou atacar [%s], mas alvo está invulnerável", attacker.GetHandle().ID, tgt.GetHandle().ID)
+	if target.IsInvulnerableNow() {
+		log.Printf("[SkillExecutor] [%s] invulnerável no momento, dano evitado de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
+			SourceHandle: attacker.GetHandle(),
+			TargetHandle: target.GetHandle(),
+			BehaviorType: "DamageAvoided",
+			Timestamp:    time.Now(),
+		})
 		return result
 	}
 
-	// Checa requisitos de posicionamento
-	if skill.Conditions != nil && skill.Conditions.FacingRequirement == "Behind" {
-		if !IsBehind(attacker, target) {
-			log.Printf("[SkillExecutor] [%s] precisa estar atrás de [%s] para usar %s",
-				attacker.GetHandle().ID, target.GetHandle().ID, skill.Name)
-			return result
-		}
-	}
+	// Atualiza direção do atacante
+	dir := position.NewVector2DFromTo(attacker.GetPosition(), target.GetPosition())
+	attacker.SetFacingDirection(dir)
 
-	dir := position.Vector2D{
-		X: target.GetPosition().FastGlobalX() - attacker.GetPosition().FastGlobalX(),
-		Y: target.GetPosition().Z - attacker.GetPosition().Z,
-	}
-	attacker.FacingDirection = dir.Normalize()
-
-	// Calcula dano
 	damage := calculateDamageGeneric(attacker, target, skill.InitialMultiplier)
 
-	target.TakeDamage(damage)
-	result.TargetDied = !target.CheckIsAlive()
+	// 🔄 BLOQUEIO E PARRY
+	if target.IsBlocking() {
+		now := time.Now()
+		blockDir := target.GetFacingDirection()
+		attackDir := position.NewVector2DFromTo(target.GetPosition(), attacker.GetPosition())
+		dot := blockDir.Dot(attackDir)
 
-	// Postura
-	if skill.Impact != nil && skill.Impact.PostureDamageBase > 0 {
-		postureDamage := skill.Impact.PostureDamageBase + getPostureScaling(attacker, skill)
-		if tgt, ok := target.(*creature.Creature); ok {
-			tgt.ApplyPostureDamage(postureDamage)
+		if dot > 0.5 {
+			// PARRY
+			if target.IsInParryWindow() {
+				log.Printf("[PARRY] [%s] executou parry em [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+				svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
+					SourceHandle: target.GetHandle(),
+					TargetHandle: attacker.GetHandle(),
+					BehaviorType: "Parry",
+					Timestamp:    now,
+				})
+				return result // Parry bem-sucedido cancela ataque
+			}
+
+			// BLOQUEIO bem-sucedido
+			log.Printf("[BLOCK] [%s] bloqueou ataque de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+			svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
+				SourceHandle: target.GetHandle(),
+				TargetHandle: attacker.GetHandle(),
+				BehaviorType: "DefensePerformed",
+				Timestamp:    now,
+			})
+
+			// Aplica posture damage dobrado
+			if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
+				postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
+				target.ApplyPostureDamage(postureDamage * 2)
+				log.Printf("[BLOCK] [%s] aplicou %.1f de posture damage (dobrado)", target.GetHandle().ID, postureDamage*2)
+			}
+
+			return result // Bloqueio nega dano
+		} else {
+			// BLOQUEIO mal direcionado
+			log.Printf("[BLOCK-FAILED] [%s] bloqueou em direção errada, ataque passou", target.GetHandle().ID)
+
+			// Ainda assim registra tentativa de defesa
+			svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
+				SourceHandle: target.GetHandle(),
+				TargetHandle: attacker.GetHandle(),
+				BehaviorType: "DefenseFailed",
+				Timestamp:    now,
+			})
+
 		}
 	}
 
-	// DOT
+	// Aplica dano
+	target.TakeDamage(damage)
+	result.TargetDied = !target.IsAlive()
+
+	// POSTURE NORMAL
+	if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
+		postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
+		target.ApplyPostureDamage(postureDamage)
+	}
+
+	// DOT apenas se dano foi aplicado
 	if skill.HasDOT && skill.DOT != nil {
 		dotPower := damage / (skill.DOT.DurationSec / skill.DOT.TickSec)
-		effect := consts.ActiveEffect{
-			Type:         skill.DOT.EffectType,
-			StartTime:    time.Now(),
-			Duration:     time.Duration(skill.DOT.DurationSec) * time.Second,
-			TickInterval: time.Duration(skill.DOT.TickSec) * time.Second,
-			Power:        dotPower,
-			IsDOT:        true,
-			IsDebuff:     true,
+		effect := constslib.ActiveEffect{
+			Type:            skill.DOT.EffectType,
+			StartTime:       time.Now(),
+			Duration:        time.Duration(skill.DOT.DurationSec) * time.Second,
+			TickInterval:    time.Duration(skill.DOT.TickSec) * time.Second,
+			Power:           dotPower,
+			IsDOT:           true,
+			IsDebuff:        true,
+			Elapsed:         0,
+			LastTickElapsed: 0,
 		}
 		target.ApplyEffect(effect)
 	}
 
 	log.Printf("[SkillExecutor] [%s (%s)] usou %s em [%s] causando %d de dano",
-		attacker.GetHandle().ID, attacker.PrimaryType, skill.Name, target.GetHandle().ID, damage)
-
-	if result.TargetDied && attacker.IsHungry() {
-		log.Printf("[AI] [%s] matou [%s], está com fome e vai buscar comida", attacker.GetHandle().ID, target.GetHandle().ID)
-		attacker.ChangeAIState(consts.AIStateSearchFood)
-	}
+		attacker.GetHandle().ID, attacker.GetPrimaryType(), skill.Name, target.GetHandle().ID, damage)
 
 	result.Success = true
 	return result
 }
 
-func calculateDamageGeneric(attacker *creature.Creature, target model.Targetable, mult float64) int {
-	baseDamage := 0
-	switch skillTarget := target.(type) {
-	case *creature.Creature:
-		baseDamage = int(float64(attacker.Strength)*mult - (skillTarget.PhysicalDefense * float64(attacker.Strength)))
-	case *player.Player:
-		baseDamage = int(float64(attacker.Strength) * mult) // Ajuste para player
-	default:
-		baseDamage = int(float64(attacker.Strength) * mult)
-	}
-	if baseDamage <= 0 {
-		baseDamage = 1
-	}
-	return baseDamage
-}
-
-func ApplyAOEDamage(attacker *creature.Creature, targetPos position.Position, skill Skill, creatures []*creature.Creature, players []*player.Player) {
-	for _, c := range creatures {
-		if c.GetHandle().Equals(attacker.GetHandle()) {
+func ApplyAOEDamage(attacker model.Attacker, targetPos position.Position, skill *model.Skill, creatures []model.Targetable, players []model.Targetable, svcCtx *dynamic_context.AIServiceContext) {
+	for _, t := range creatures {
+		if t.GetHandle().Equals(attacker.GetHandle()) {
 			continue
 		}
-		if shouldSkipTarget(attacker, c) {
+		if shouldSkipTarget(attacker, t) {
 			continue
 		}
-		if position.CalculateDistance(c.GetPosition(), targetPos) <= skill.AOE.Radius {
-			ApplyDirectDamage(attacker, c, skill)
+		if position.CalculateDistance(t.GetPosition(), targetPos) <= skill.AOE.Radius {
+			ApplyDirectDamage(attacker, t, skill, svcCtx)
 		}
 	}
 
-	for _, p := range players {
-		if position.CalculateDistance(p.Position, targetPos) <= skill.AOE.Radius {
-			// No futuro: ApplyDirectDamageToPlayer
+	for _, t := range players {
+		if t.GetHandle().Equals(attacker.GetHandle()) {
+			continue
+		}
+		if shouldSkipTarget(attacker, t) {
+			continue
+		}
+		if position.CalculateDistance(t.GetPosition(), targetPos) <= skill.AOE.Radius {
+			ApplyDirectDamage(attacker, t, skill, svcCtx)
 		}
 	}
 }
 
-func SimulateProjectile(attacker *creature.Creature, target model.Targetable, targetPos position.Position, skill Skill) {
+func SimulateProjectile(attacker model.Attacker, target model.Targetable, targetPos position.Position, skill *model.Skill, svcCtx *dynamic_context.AIServiceContext) {
 	if target == nil || skill.Projectile == nil {
 		log.Printf("[SkillExecutor] SimulateProjectile inválido. Skill: %s", skill.Name)
 		return
@@ -155,56 +281,193 @@ func SimulateProjectile(attacker *creature.Creature, target model.Targetable, ta
 
 	travelTime := position.CalculateDistance(attacker.GetPosition(), targetPos) / skill.Projectile.Speed
 	time.AfterFunc(time.Duration(travelTime*1000)*time.Millisecond, func() {
-		ApplyDirectDamage(attacker, target, skill)
-		log.Printf("[SkillExecutor] Projetil %s chegou ao alvo %s após %.2f segundos", skill.Name, target.GetHandle().ID, travelTime)
+		ApplyDirectDamage(attacker, target, skill, svcCtx)
+		log.Printf("[SkillExecutor] Projetil %s chegou ao alvo %s após %.2f segundos",
+			skill.Name, target.GetHandle().ID, travelTime)
 	})
 }
 
-func IsBehind(attacker *creature.Creature, target model.Targetable) bool {
+func IsBehind(attacker model.Attacker, target model.Targetable) bool {
 	dirToAttacker := position.Vector2D{
-		X: attacker.GetPosition().FastGlobalX() - target.GetPosition().FastGlobalX(),
-		Y: attacker.GetPosition().Z - target.GetPosition().Z,
+		X: attacker.GetPosition().X - target.GetPosition().X,
+		Z: attacker.GetPosition().Z - target.GetPosition().Z,
 	}.Normalize()
+
 	targetFacing := target.GetFacingDirection().Normalize()
-	dot := dirToAttacker.X*targetFacing.X + dirToAttacker.Y*targetFacing.Y
+	dot := dirToAttacker.Dot(targetFacing)
+
 	return dot > 0.5
 }
 
-func shouldSkipTarget(attacker, target model.Targetable) bool {
+func shouldSkipTarget(attacker model.Attacker, target model.Targetable) bool {
 	if attacker == nil || target == nil {
 		return true
 	}
+
 	if attacker.GetHandle().Equals(target.GetHandle()) {
+		return true // Não atacar a si mesmo
+	}
+
+	if !target.IsAlive() {
 		return true
 	}
 
-	switch tgt := target.(type) {
-	case *creature.Creature:
-		creatureAttacker, ok := attacker.(*creature.Creature)
-		if !ok {
-			return !tgt.IsAlive || !tgt.IsHostile
-		}
-		return !tgt.IsAlive || (!tgt.IsHostile && !creatureAttacker.IsHungry())
-	case *player.Player:
-		return !tgt.IsAlive || !tgt.IsPvPEnabled
+	if target.IsHostile() {
+		return false // Pode atacar se é hostil
+	}
+
+	// Caso adicional: se atacante precisa de hostilidade ou fome (ex: criatura faminta)
+	// Você pode adaptar essa regra conforme o contexto do seu AI
+	if attacker.IsHungry() {
+		return false // Pode atacar mesmo não sendo hostil se está com fome
+	}
+
+	// PvP check (caso alvo seja player)
+	if !target.IsPvPEnabled() {
+		return true
 	}
 
 	return false
 }
 
-func getPostureScaling(attacker *creature.Creature, skill Skill) float64 {
+func getPostureScaling(attacker model.Attacker, skill *model.Skill) float64 {
 	if skill.Impact == nil {
 		return 0
 	}
 	switch skill.Impact.ScalingStat {
 	case "Strength":
-		return float64(attacker.Strength) * skill.Impact.ScalingMultiplier
+		return float64(attacker.GetStrength()) * skill.Impact.ScalingMultiplier
 	case "Dexterity":
-		return float64(attacker.Dexterity) * skill.Impact.ScalingMultiplier
+		return float64(attacker.GetDexterity()) * skill.Impact.ScalingMultiplier
 	case "Intelligence":
-		return float64(attacker.Intelligence) * skill.Impact.ScalingMultiplier
+		return float64(attacker.GetIntelligence()) * skill.Impact.ScalingMultiplier
 	case "Focus":
-		return float64(attacker.Focus) * skill.Impact.ScalingMultiplier
+		return float64(attacker.GetFocus()) * skill.Impact.ScalingMultiplier
 	}
 	return 0
+}
+
+func calculateDamageGeneric(attacker model.Attacker, target model.Targetable, mult float64) int {
+	baseDamage := 0
+	strength := float64(attacker.GetStrength())
+
+	switch t := target.(type) {
+	case model.Attacker:
+		// Se o alvo também for um Attacker, podemos acessar defesas via interface (se tiver)
+		// Vamos assumir que temos GetPhysicalDefense() na interface ou tratamos como 0
+		var defense float64
+		if pd, ok := t.(interface{ GetPhysicalDefense() float64 }); ok {
+			defense = pd.GetPhysicalDefense()
+		}
+		baseDamage = int(strength*mult - (defense * strength))
+
+	default:
+		baseDamage = int(strength * mult)
+	}
+
+	if baseDamage <= 0 {
+		baseDamage = 1
+	}
+
+	return baseDamage
+}
+
+func CalculatePhysicalDamage(attacker model.Attacker, target model.Targetable, skillMultiplier float64) int {
+	baseAttack := float64(attacker.GetStrength())
+	dexBonus := float64(attacker.GetDexterity()) * 0.1
+	rawDamage := (baseAttack + dexBonus) * skillMultiplier
+
+	var defense float64
+	if d, ok := target.(interface{ GetPhysicalDefense() float64 }); ok {
+		defense = d.GetPhysicalDefense()
+	}
+
+	finalDamage := rawDamage * (1 - defense)
+	if finalDamage < 1 {
+		finalDamage = 1
+	}
+
+	return int(math.Round(finalDamage))
+}
+
+func CalculateMagicDamage(attacker model.Attacker, target model.Targetable, skillMultiplier float64) int {
+	baseMagic := float64(attacker.GetIntelligence())
+	focusBonus := float64(attacker.GetFocus()) * 0.05
+	rawDamage := (baseMagic + focusBonus) * skillMultiplier
+
+	var defense float64
+	if d, ok := target.(interface{ GetMagicDefense() float64 }); ok {
+		defense = d.GetMagicDefense()
+	}
+
+	finalDamage := rawDamage * (1 - defense)
+	if finalDamage < 1 {
+		finalDamage = 1
+	}
+
+	return int(math.Round(finalDamage))
+}
+
+func CalculatePoisonDamage(attacker model.Attacker, target model.Targetable) int {
+	base := 5.0
+	strBonus := float64(attacker.GetStrength()) * 0.2
+	intBonus := float64(attacker.GetIntelligence()) * 0.1
+	rawDOT := base + strBonus + intBonus
+
+	var resist float64
+	if r, ok := target.(interface{ GetStatusResistance() float64 }); ok {
+		resist = r.GetStatusResistance()
+	}
+
+	finalDOT := rawDOT * (1 - resist)
+	if finalDOT < 1 {
+		finalDOT = 1
+	}
+
+	return int(math.Round(finalDOT))
+}
+
+func CalculateBurnDamage(attacker model.Attacker, target model.Targetable) int {
+	base := 7.0
+	intBonus := float64(attacker.GetIntelligence()) * 0.3
+	rawDOT := base + intBonus
+
+	var resist float64
+	if r, ok := target.(interface{ GetStatusResistance() float64 }); ok {
+		resist = r.GetStatusResistance()
+	}
+
+	finalDOT := rawDOT * (1 - resist)
+	if finalDOT < 1 {
+		finalDOT = 1
+	}
+
+	return int(math.Round(finalDOT))
+}
+
+func CalculateHealing(attacker model.Attacker, skillMultiplier float64) int {
+	baseHeal := float64(attacker.GetFocus()*2 + attacker.GetIntelligence())
+	finalHeal := baseHeal * skillMultiplier
+
+	if finalHeal < 1 {
+		finalHeal = 1
+	}
+
+	return int(math.Round(finalHeal))
+}
+
+func CalculateEffectiveCCDuration(baseDuration float64, target model.Targetable) float64 {
+	var resist float64
+	if r, ok := target.(interface{ GetControlResistance() float64 }); ok {
+		resist = r.GetControlResistance()
+	}
+
+	reduction := baseDuration * resist
+	finalDuration := baseDuration - reduction
+
+	if finalDuration < 0.1 {
+		finalDuration = 0.1 // Mínimo de 0.1s pra evitar CC zero
+	}
+
+	return finalDuration
 }

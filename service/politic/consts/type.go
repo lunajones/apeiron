@@ -1,3 +1,5 @@
+package consts
+
 type RelationStatus string
 
 const (

@@ -1,12 +1,13 @@
 package creature
 
 import (
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
 func AreEnemies(a, b *Creature) bool {
 	// Mesmo grupo ou não-hostis
-	if a.Faction == b.Faction || (!a.IsHostile && !b.IsHostile) {
+	if a.Faction == b.Faction || (!a.Hostile && !b.Hostile) {
 		return false
 	}
 
@@ -22,7 +23,7 @@ func AreEnemies(a, b *Creature) bool {
 
 	// Predadores atacam humanoides se estiverem com fome
 	if a.HasTag(consts.TagPredator) && b.HasTag(consts.TagHumanoid) {
-		hunger := a.GetNeedValue(consts.NeedHunger)
+		hunger := a.GetNeedValue(constslib.NeedHunger)
 		if hunger > 70 {
 			return true
 		}

@@ -5,17 +5,25 @@ import (
 	"time"
 
 	"github.com/lunajones/apeiron/lib"
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
+	decorator "github.com/lunajones/apeiron/service/ai/core/decorator"
 	"github.com/lunajones/apeiron/service/ai/node"
+	"github.com/lunajones/apeiron/service/ai/node/defensive"
+	"github.com/lunajones/apeiron/service/ai/node/helper"
+	"github.com/lunajones/apeiron/service/ai/node/neutral"
+	"github.com/lunajones/apeiron/service/ai/node/offensive"
+	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
-func NewChineseSoldier() *creature.Creature {
+func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creature.Creature {
 	log.Println("[Creature] Initializing chinese soldier...")
 
 	id := lib.NewUUID()
@@ -26,63 +34,53 @@ func NewChineseSoldier() *creature.Creature {
 
 		Creature: model.Creature{
 			Name:           "Chinese Soldier",
-			MaxHP:          100,
+			MaxHP:          250,
 			RespawnTimeSec: 30,
-			SpawnPoint: position.Position{
-				GridX: 0, GridY: 0, OffsetX: 0, OffsetY: 0, Z: 0,
-			},
-			SpawnRadius: 5.0,
-			Faction:     "Monsters",
+			SpawnPoint:     position.Position{X: 0, Y: 0, Z: 0},
+			SpawnRadius:    5.0,
+			Faction:        "Chinese Human",
 		},
+
+		MoveCtrl:             movement.NewMovementController(),
+		TargetCreatureHandle: handle.EntityHandle{},
+		TargetPlayerHandle:   handle.EntityHandle{},
 
 		PrimaryType: consts.Human,
 		Types:       []consts.CreatureType{consts.Human, consts.Soldier},
-		Actions: []consts.CreatureAction{
-			consts.ActionIdle,
-			consts.ActionWalk,
-			consts.ActionRun,
-			consts.ActionParry,
-			consts.ActionBlock,
-			consts.ActionJump,
-			consts.ActionSkill1,
-			consts.ActionSkill2,
-			consts.ActionSkill3,
-			consts.ActionSkill4,
-			consts.ActionSkill5,
-			consts.ActionCombo1,
-			consts.ActionCombo2,
-			consts.ActionCombo3,
-			consts.ActionDie,
-		},
-		HP:                 100,
-		IsAlive:            true,
-		IsCorpse:           false,
-		IsHostile:          true,
-		CurrentAction:      consts.ActionIdle,
-		AIState:            consts.AIStateIdle,
-		LastStateChange:    time.Now(),
-		DynamicCombos:      make(map[consts.CreatureAction][]consts.CreatureAction),
-		FieldOfViewDegrees: 120,
-		VisionRange:        15,
-		HearingRange:       10,
-		IsBlind:            false,
-		IsDeaf:             false,
-		DetectionRadius:    10.0,
-		AttackRange:        2.5,
-		SkillCooldowns:     make(map[consts.CreatureAction]time.Time),
-		AggroTable:         make(map[handle.EntityHandle]*aggro.AggroEntry),
+		HP:          250,
+		Alive:       true,
+		IsCorpse:    false,
+		Hostile:     true,
 
+		AIState:         constslib.AIStateCombat,
+		CombatState:     constslib.CombatStateDefensive,
+		AnimationState:  constslib.AnimationIdle,
+		LastStateChange: time.Now(),
+
+		Strength:     20,
+		Dexterity:    10,
+		Intelligence: 5,
+		Focus:        8,
+
+		HitboxRadius:            0.9,
+		DesiredBufferDistance:   0.5,
+		MinWanderDistance:       3.0,
+		MaxWanderDistance:       8.0,
+		WanderStopDistance:      0.2,
+		FieldOfViewDegrees:      120,
+		VisionRange:             15,
+		HearingRange:            10,
+		SmellRange:              6,
+		DetectionRadius:         12.0,
+		AttackRange:             2.5,
 		WalkSpeed:               2.5,
 		RunSpeed:                3.5,
+		OriginalRunSpeed:        3.5,
 		AttackSpeed:             1.2,
 		MaxPosture:              100,
-		CurrentPosture:          100,
-		PostureRegenRate:        1.5,
+		Posture:                 100,
+		PostureRegenRate:        0.1,
 		PostureBreakDurationSec: 5,
-		Strength:                20,
-		Dexterity:               10,
-		Intelligence:            5,
-		Focus:                   8,
 		PhysicalDefense:         0.15,
 		MagicDefense:            0.05,
 		RangedDefense:           0.10,
@@ -90,25 +88,246 @@ func NewChineseSoldier() *creature.Creature {
 		StatusResistance:        0.1,
 		CriticalResistance:      0.2,
 		CriticalChance:          0.05,
-		Needs: []consts.Need{
-			{Type: consts.NeedHunger, Value: 0, Threshold: 50},
+
+		BlockableChance: 0.85,
+		DodgableChance:  0.15,
+		DodgeDistance:   1.8,
+
+		DodgeInvulnerabilityDuration: 2300 * time.Millisecond,
+
+		MaxStamina:         100,
+		Stamina:            100,
+		StaminaRegenPerSec: 10,   // você pode ajustar por tipo: lobo, humano, coelho...
+		DodgeStaminaCost:   40.0, // custo padrão de dodge
+		MaxBlockDuration:   3 * time.Second,
+
+		RegisteredSkills: []*model.Skill{
+			model.SkillRegistry["SoldierSlash"],
+			model.SkillRegistry["SoldierShieldBash"],
+			model.SkillRegistry["SoldierGroundSlam"],
+			model.SkillRegistry["SoldierLongStep"],
+		},
+		SkillStates: map[constslib.SkillAction]*model.SkillState{
+			constslib.Basic:  &model.SkillState{},
+			constslib.Skill1: &model.SkillState{},
+			constslib.Skill2: &model.SkillState{},
+			constslib.Skill3: &model.SkillState{},
+			// constslib.Skill4: &model.SkillState{},
+			// constslib.Skill5: &model.SkillState{},
+		},
+		AggroTable: make(map[handle.EntityHandle]*aggro.AggroEntry),
+
+		Needs: []constslib.Need{
+			{Type: constslib.NeedHunger, Value: 0, LowThreshold: 0, Threshold: 50},
+			{Type: constslib.NeedProvoke, Value: 5, LowThreshold: 0, Threshold: 70},
+			{Type: constslib.NeedRecover, Value: 0, LowThreshold: 0, Threshold: 50},
+			{Type: constslib.NeedAdvance, Value: 70, LowThreshold: 45, Threshold: 60},
+			{Type: constslib.NeedGuard, Value: 30, LowThreshold: 40, Threshold: 60},
+			{Type: constslib.NeedRetreat, Value: 0, LowThreshold: 0, Threshold: 100},
+			{Type: constslib.NeedRage, Value: 0, LowThreshold: 0, Threshold: 99},
+			{Type: constslib.NeedFake, Value: 0, LowThreshold: 40, Threshold: 60},
+			{Type: constslib.NeedPlan, Value: 0, LowThreshold: 40, Threshold: 60},
 		},
 		Tags: []consts.CreatureTag{
 			consts.TagHumanoid,
 		},
-		FacingDirection: position.Vector2D{X: 1, Y: 0},
+		FacingDirection:   position.Vector2D{X: 1, Z: 0},
+		Position:          position.Position{X: 0, Y: 0, Z: 0},
+		LastPosition:      position.Position{X: 0, Y: 0, Z: 0},
+		ActiveEffects:     []constslib.ActiveEffect{},
+		DamageWeakness:    make(map[constslib.DamageType]float32),
+		LastKnownDistance: 0,
 	}
 
-	c.Position = c.GenerateSpawnPosition()
+	for _, skill := range c.RegisteredSkills {
+		if skill == nil {
+			continue
+		}
 
-	c.BehaviorTree = core.NewSelectorNode(
-		core.NewCooldownDecorator(&node.FleeIfLowHPNode{}, 5*time.Second),
-		//core.NewCooldownDecorator(&predator.DetectOtherCreatureNode{}, 2*time.Second),
-		core.NewCooldownDecorator(&node.DetectPlayerNode{}, 2*time.Second),
-		core.NewCooldownDecorator(&node.MaintainMediumDistanceNode{}, 3*time.Second),
-		// core.NewCooldownDecorator(&node.UseGroundSkillNode{SkillName: "SoldierGroundSlam"}, 4*time.Second),
-		core.NewCooldownDecorator(&node.RandomIdleNode{}, 5*time.Second),
+		state, exists := c.SkillStates[skill.Action]
+
+		if !exists {
+			state = &model.SkillState{}
+			c.SkillStates[skill.Action] = state
+		}
+		state.Skill = skill
+		state.ChargesLeft = 1
+	}
+
+	tree := core.NewStateSelectorNode()
+
+	tree.AddSubtree(constslib.AIStateIdle,
+		decorator.NewInterruptOnThreatDecorator(
+			core.NewSelectorNode(
+				core.NewCooldownDecorator(
+					&node.EvaluateNeedsNode{
+						PriorityOrder: []constslib.NeedType{
+							constslib.NeedHunger,
+						},
+					},
+					2*time.Second,
+				),
+				core.NewCooldownDecorator(
+					&node.WanderNode{
+						MaxDistance:      1.5,
+						SniffChance:      0.2,
+						LookAroundChance: 0.1,
+						IdleChance:       0.1,
+						ScratchChance:    0.05,
+						VocalizeChance:   0.05,
+						PlayChance:       0.05,
+						ThreatChance:     0.05,
+						CuriousChance:    0.05,
+					},
+					3*time.Second,
+				),
+			),
+			constslib.AIStateCombat,
+			constslib.AnimationCombatReady,
+		),
 	)
+
+	tree.AddSubtree(constslib.AIStateSearchFood,
+		decorator.NewInterruptOnThreatDecorator(
+			core.NewSelectorNode(
+				core.NewSequenceNode(
+					&predator.SearchPreyNode{
+						TargetTags: []consts.CreatureTag{
+							consts.TagPrey,
+							consts.TagCoward,
+						},
+					},
+				),
+				core.NewCooldownDecorator(
+					&node.WanderNode{
+						MaxDistance:      3.5,
+						SniffChance:      0.3,
+						LookAroundChance: 0.2,
+						IdleChance:       0.1,
+						ScratchChance:    0.05,
+						VocalizeChance:   0.05,
+						PlayChance:       0.05,
+						ThreatChance:     0.05,
+						CuriousChance:    0.05,
+					},
+					3*time.Second,
+				),
+			),
+			constslib.AIStateCombat,
+			constslib.AnimationCombatReady,
+		),
+	)
+
+	tree.AddSubtree(constslib.AIStateChasing,
+		decorator.NewInterruptOnThreatDecorator(
+			core.NewSequenceNode(
+				core.NewSelectorNode(
+					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+						return c.NextSkillToUse != nil
+					}),
+					&offensive.PlanOffensiveSkillNode{},
+				),
+				core.NewSelectorNode(
+					&offensive.CheckSkillRangeNode{},
+					&offensive.ChaseTargetNode{},
+				),
+				&offensive.SkillStateNode{},
+			),
+			constslib.AIStateCombat,
+			constslib.AnimationCombatReady,
+		),
+	)
+
+	tree.AddSubtree(constslib.AIStateCombat,
+		core.NewSequenceNode(
+			decorator.NewAutoFaceTargetDecorator(
+				core.NewSelectorNode(
+
+					// 💚 IDLE STATE
+					core.NewSequenceNode(
+						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+							return c.CombatState == constslib.CombatStateIdle
+						}),
+						&neutral.CheckOrEnterExitCombatNode{},
+					),
+
+					// 🟠 CAUTIOUS STATE
+					core.NewSequenceNode(
+						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+							return c.CombatState == constslib.CombatStateCautious
+						}),
+						core.NewSelectorNode(
+							&neutral.SearchForVisualConfirmationNode{},
+							&neutral.CheckOrEnterExitCombatNode{},
+						),
+					),
+
+					// 🔥 AGGRESSIVE STATE
+					core.NewSequenceNode(
+						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+							return c.CombatState == constslib.CombatStateAggressive
+						}),
+						core.NewSelectorNode(
+							core.NewSequenceNode(
+								helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+									// Só planeja se ainda não houver skill nem movimento de skill
+									return c.NextSkillToUse == nil && c.SkillMovementState == nil
+								}),
+								&offensive.PlanOffensiveSkillNode{},
+								&offensive.ChaseUntilInRangeNode{},
+							),
+							&offensive.SkillStateNode{}, // SEMPRE executa enquanto houver skill em andamento
+						),
+					),
+
+					// // 🛡️ DEFENSIVE STATE
+					// core.NewSequenceNode(
+					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+					// 		return c.CombatState == constslib.CombatStateDefensive
+					// 	}),
+					// 	&defensive.DefendIfPossibleNode{},
+					// ),
+
+					// 🎯 STRATEGIC STATE
+					// core.NewSequenceNode(
+					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+					// 		return c.CombatState == constslib.CombatStateStrategic
+					// 	}),
+					// 	core.NewSelectorNode(
+					// 		&neutral.FlankOrRepositionNode{},
+					// 		&neutral.RandomFakeAdvanceChanceNode{},
+					// 	),
+					// ),
+
+					// 🏃 FLEEING STATE
+					core.NewSequenceNode(
+						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+							return c.CombatState == constslib.CombatStateFleeing
+						}),
+						&defensive.RetreatNode{},
+					),
+
+					// ⚡ RAGING STATE
+					core.NewSequenceNode(
+						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+							return c.CombatState == constslib.CombatStateRaging
+						}),
+						core.NewSelectorNode(
+							&offensive.PlanOffensiveSkillNode{},
+							&offensive.SkillStateNode{},
+							&offensive.CheckSkillRangeNode{},
+							&offensive.ChaseTargetNode{},
+						),
+					),
+
+					// 🌟 SEMPRE roda feedback
+					&helper.CombatFeedbackNode{},
+				),
+			),
+		),
+	)
+
+	c.BehaviorTree = tree
 
 	return c
 }

@@ -1,13 +1,13 @@
 package creature
 
 import (
-	"log"
 	"math/rand"
 
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
-func (c *Creature) SetNeedValue(needType consts.NeedType, value float64) {
+func (c *Creature) SetNeedValue(needType constslib.NeedType, value float64) {
 	for i := range c.Needs {
 		if c.Needs[i].Type == needType {
 			c.Needs[i].Value = value
@@ -16,7 +16,7 @@ func (c *Creature) SetNeedValue(needType consts.NeedType, value float64) {
 	}
 }
 
-func (c *Creature) GetNeedValue(needType consts.NeedType) float64 {
+func (c *Creature) GetNeedValue(needType constslib.NeedType) float64 {
 	for _, n := range c.Needs {
 		if n.Type == needType {
 			return n.Value
@@ -25,7 +25,7 @@ func (c *Creature) GetNeedValue(needType consts.NeedType) float64 {
 	return 0
 }
 
-func ModifyNeed(c *Creature, needType consts.NeedType, amount float64) {
+func ModifyNeed(c *Creature, needType constslib.NeedType, amount float64) {
 	for i := range c.Needs {
 		if c.Needs[i].Type == needType {
 			old := c.Needs[i].Value
@@ -38,10 +38,19 @@ func ModifyNeed(c *Creature, needType consts.NeedType, amount float64) {
 				newVal = 100
 			}
 
-			// Só aplica e loga se houver mudança real
 			if newVal != old {
 				c.Needs[i].Value = newVal
-				log.Printf("[Creature] %s (%s) teve %s modificada de %.2f → %.2f", c.Handle.String(), c.PrimaryType, needType, old, newVal)
+
+				// Só loga se for Need de combate
+				if needType == constslib.NeedAdvance ||
+					needType == constslib.NeedGuard ||
+					needType == constslib.NeedRetreat ||
+					needType == constslib.NeedRage ||
+					needType == constslib.NeedPlan ||
+					needType == constslib.NeedFake {
+					// log.Printf("[Creature] %s (%s) teve %s modificada de %.2f → %.2f",
+					// 	c.Handle.String(), c.PrimaryType, needType, old, newVal)
+				}
 			}
 
 			break
@@ -49,7 +58,7 @@ func ModifyNeed(c *Creature, needType consts.NeedType, amount float64) {
 	}
 }
 
-func (c *Creature) GetNeedThreshold(needType consts.NeedType) float64 {
+func (c *Creature) GetNeedThreshold(needType constslib.NeedType) float64 {
 	for _, n := range c.Needs {
 		if n.Type == needType {
 			return n.Threshold
@@ -64,24 +73,27 @@ type NeedDefaults struct {
 	Threshold float64
 }
 
-var GlobalNeedDefaults = map[consts.NeedType]NeedDefaults{
-	consts.NeedHunger: {Min: 10, Max: 40, Threshold: 30},
-	consts.NeedSleep:  {Min: 20, Max: 50, Threshold: 40},
-	consts.NeedThirst: {Min: 5, Max: 30, Threshold: 25},
-	consts.NeedSocial: {Min: 0, Max: 50, Threshold: 45},
-	consts.NeedFuck:   {Min: 10, Max: 40, Threshold: 30},
-	consts.NeedKill:   {Min: 5, Max: 30, Threshold: 25},
-	consts.NeedDrink:  {Min: 5, Max: 30, Threshold: 20},
+var GlobalNeedDefaults = map[constslib.NeedType]NeedDefaults{
+	constslib.NeedHunger:  {Min: 10, Max: 40, Threshold: 30},
+	constslib.NeedSleep:   {Min: 20, Max: 50, Threshold: 40},
+	constslib.NeedThirst:  {Min: 5, Max: 30, Threshold: 25},
+	constslib.NeedSocial:  {Min: 0, Max: 50, Threshold: 45},
+	constslib.NeedFuck:    {Min: 10, Max: 40, Threshold: 30},
+	constslib.NeedKill:    {Min: 5, Max: 30, Threshold: 25},
+	constslib.NeedDrink:   {Min: 5, Max: 30, Threshold: 20},
+	constslib.NeedProvoke: {Min: 0, Max: 10, Threshold: 8},
+	constslib.NeedAdvance: {Min: 0, Max: 10, Threshold: 7},
+	constslib.NeedGuard:   {Min: 0, Max: 10, Threshold: 7},
 }
 
-var CreatureNeedDefaults = map[consts.CreatureType]map[consts.NeedType]NeedDefaults{
+var CreatureNeedDefaults = map[consts.CreatureType]map[constslib.NeedType]NeedDefaults{
 	consts.Rabbit: {
-		consts.NeedHunger: {Min: 30, Max: 60, Threshold: 50},
-		consts.NeedSleep:  {Min: 40, Max: 70, Threshold: 60},
+		constslib.NeedHunger: {Min: 30, Max: 60, Threshold: 50},
+		constslib.NeedSleep:  {Min: 40, Max: 70, Threshold: 60},
 	},
 	consts.Wolf: {
-		consts.NeedHunger: {Min: 20, Max: 50, Threshold: 40},
-		consts.NeedSleep:  {Min: 10, Max: 35, Threshold: 25},
+		constslib.NeedHunger: {Min: 20, Max: 50, Threshold: 40},
+		constslib.NeedSleep:  {Min: 10, Max: 35, Threshold: 25},
 	},
 }
 
@@ -103,7 +115,7 @@ func (c *Creature) ResetNeeds() {
 	}
 }
 
-func (c *Creature) GetNeedByType(needType consts.NeedType) *consts.Need {
+func (c *Creature) GetNeedByType(needType constslib.NeedType) *constslib.Need {
 	for i := range c.Needs {
 		if c.Needs[i].Type == needType {
 			return &c.Needs[i]

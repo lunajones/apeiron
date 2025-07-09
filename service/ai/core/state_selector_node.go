@@ -1,21 +1,21 @@
 package core
 
 import (
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
 type StateSelectorNode struct {
-	Subtrees map[consts.AIState]BehaviorNode
+	Subtrees map[constslib.AIState]BehaviorNode
 }
 
 func NewStateSelectorNode() *StateSelectorNode {
 	return &StateSelectorNode{
-		Subtrees: make(map[consts.AIState]BehaviorNode),
+		Subtrees: make(map[constslib.AIState]BehaviorNode),
 	}
 }
 
-func (n *StateSelectorNode) AddSubtree(state consts.AIState, subtree BehaviorNode) {
+func (n *StateSelectorNode) AddSubtree(state constslib.AIState, subtree BehaviorNode) {
 	n.Subtrees[state] = subtree
 }
 
