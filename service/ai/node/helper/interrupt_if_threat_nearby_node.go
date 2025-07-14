@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/fatih/color"
 	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
@@ -61,21 +60,8 @@ func (n *InterruptIfThreatNearbyNode) Tick(c *creature.Creature, ctx interface{}
 				c.Handle.String(), c.PrimaryType, detectedBy)
 		}
 
-		// Decide CombatState inicial
-		switch detectedBy {
-		case "vision":
-			c.CombatState = constslib.CombatStateAggressive
-		case "hearing", "smell":
-			c.CombatState = constslib.CombatStateCautious
-		default:
-			c.CombatState = constslib.CombatStateIdle
-		}
-		log.Printf("[AI-INTERRUPT] [%s] combate iniciado em %s", c.Handle.String(), detectedBy)
-		log.Printf("%s", color.New(color.FgHiMagenta).Sprintf(
-			"[AI-INTERRUPT] [%s (%s)] combate iniciado → CombatState=%s (detectedBy=%s)",
-			c.Handle.String(), c.PrimaryType,
-			c.CombatState.String(), detectedBy,
-		))
+		// Sempre inicia em CombatState Cautious
+		c.CombatState = constslib.CombatStateCautious
 
 		c.TargetCreatureHandle = other.Handle
 		c.LastThreatSeen = time.Now()
@@ -87,17 +73,10 @@ func (n *InterruptIfThreatNearbyNode) Tick(c *creature.Creature, ctx interface{}
 			c.ChangeAIState(n.InterruptAIState)
 		}
 
-		// Registra ThreatDetected
-		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-			SourceHandle: c.Handle,
-			BehaviorType: "ThreatDetected",
-			Timestamp:    time.Now(),
-		})
-
 		return core.StatusSuccess
 	}
 
 	return core.StatusFailure
 }
 
-func (n *InterruptIfThreatNearbyNode) Reset() {}
+func (n *InterruptIfThreatNearbyNode) Reset(c *creature.Creature) {}

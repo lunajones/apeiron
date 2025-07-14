@@ -12,15 +12,17 @@ func InitSkills() {
 	log.Println("[Skill Registry] initializing skills...")
 
 	SkillRegistry["SoldierSlash"] = &Skill{
+		ID:                "SoldierSlash",
 		Name:              "SoldierSlash",
+		Tags:              NewSkillTags("Burst"),
 		Action:            constslib.Basic,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.0,
-		Range:             2.0,
-		CooldownSec:       0.6, // igual ao castTime
+		Range:             2.2,
+		CooldownSec:       0.4,
 		WindUpTime:        0.1,
 		CastTime:          0.4,
-		RecoveryTime:      0.1,
+		RecoveryTime:      0.4,
 		Interruptible:     true,
 		Impact: &ImpactEffect{
 			PostureDamage:     5,
@@ -32,11 +34,13 @@ func InitSkills() {
 	}
 
 	SkillRegistry["SoldierShieldBash"] = &Skill{
+		ID:                "SoldierShieldBash",
 		Name:              "SoldierShieldBash",
+		Tags:              NewSkillTags("Interrupt", "Burst"),
 		Action:            constslib.Skill1,
 		SkillType:         "Physical",
 		InitialMultiplier: 0.8,
-		Range:             1.5,
+		Range:             2.0,
 		CooldownSec:       3.0,
 		WindUpTime:        0.2,
 		CastTime:          0.2,
@@ -52,7 +56,9 @@ func InitSkills() {
 	}
 
 	SkillRegistry["SoldierGroundSlam"] = &Skill{
+		ID:                "SoldierGroundSlam",
 		Name:              "SoldierGroundSlam",
+		Tags:              NewSkillTags("AOE", "Burst"),
 		Action:            constslib.Skill2,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.5,
@@ -76,7 +82,9 @@ func InitSkills() {
 	}
 
 	SkillRegistry["SoldierLongStep"] = &Skill{
+		ID:                "SoldierLongStep",
 		Name:              "SoldierLongStep",
+		Tags:              NewSkillTags("Rush", "Burst"),
 		Action:            constslib.Skill3,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.3,
@@ -93,11 +101,12 @@ func InitSkills() {
 			DefenseStat:       "ControlResistance",
 		},
 		ScoreBase: 5.0,
-		// Você pode adicionar bleeding effect como buff/debuff se quiser
 	}
 
 	SkillRegistry["SoldierShieldRush"] = &Skill{
+		ID:                "SoldierShieldRush",
 		Name:              "SoldierShieldRush",
+		Tags:              NewSkillTags("Rush", "Burst"),
 		Action:            constslib.Skill4,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.2,
@@ -127,14 +136,16 @@ func InitSkills() {
 	}
 
 	SkillRegistry["SoldierRiposteStance"] = &Skill{
+		ID:                "SoldierRiposteStance",
 		Name:              "SoldierRiposteStance",
+		Tags:              NewSkillTags("Utility"),
 		Action:            constslib.Combo1,
 		SkillType:         "Physical",
-		InitialMultiplier: 1.0, // o dano real vem do counter
+		InitialMultiplier: 1.0,
 		Range:             1.5,
 		CooldownSec:       8.0,
 		WindUpTime:        0.0,
-		CastTime:          3.0, // tempo máximo em stance
+		CastTime:          3.0,
 		RecoveryTime:      0.5,
 		Interruptible:     false,
 		Impact: &ImpactEffect{
@@ -147,12 +158,14 @@ func InitSkills() {
 	}
 
 	SkillRegistry["Bite"] = &Skill{
+		ID:                "Bite",
 		Name:              "Bite",
+		Tags:              NewSkillTags("Interrupt"),
 		Action:            constslib.Basic,
 		SkillType:         "Physical",
-		InitialMultiplier: 0.5,
-		Range:             1.5,
-		CooldownSec:       2.5,
+		InitialMultiplier: 0.8,
+		Range:             2.2,
+		CooldownSec:       1.1,
 		WindUpTime:        1.0,
 		CastTime:          0.4,
 		RecoveryTime:      1.1,
@@ -168,7 +181,9 @@ func InitSkills() {
 	}
 
 	SkillRegistry["Lacerate"] = &Skill{
+		ID:                "Lacerate",
 		Name:              "Lacerate",
+		Tags:              NewSkillTags("DOT", "Burst"),
 		Action:            constslib.Skill1,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.0,
@@ -177,7 +192,7 @@ func InitSkills() {
 		WindUpTime:        0.6,
 		CastTime:          0.5,
 		RecoveryTime:      1.4,
-		Interruptible:     false,
+		Interruptible:     true,
 		HasDOT:            true,
 		DOT: &DOTConfig{
 			DurationSec: 6,
@@ -196,7 +211,9 @@ func InitSkills() {
 	}
 
 	SkillRegistry["Leap"] = &Skill{
+		ID:                "Leap",
 		Name:              "Leap",
+		Tags:              NewSkillTags("Rush", "Burst"),
 		Action:            constslib.Skill2,
 		SkillType:         "Physical",
 		InitialMultiplier: 1.8,

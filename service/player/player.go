@@ -57,6 +57,9 @@ type Player struct {
 	PostureBroken           bool
 	TimePostureBroken       int64
 	PostureBreakDurationSec int
+
+	combatDrive model.CombatDrive
+	casting     bool
 }
 
 func (p *Player) InitNeeds() {
@@ -224,4 +227,20 @@ func (p *Player) ApplyPostureDamage(amount float64) {
 
 func (p *Player) IsInParryWindow() bool {
 	return true
+}
+
+func (p *Player) GetFaction() string {
+	return p.Faction
+}
+
+func (p *Player) IsCasting() bool {
+	return p.casting
+}
+
+func (p *Player) SetCasting(casting bool) {
+	p.casting = casting
+}
+
+func (p *Player) GetCombatDrive() *model.CombatDrive {
+	return &p.combatDrive
 }

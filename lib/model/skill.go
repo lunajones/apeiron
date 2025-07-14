@@ -7,6 +7,8 @@ import (
 )
 
 type Skill struct {
+	ID string
+
 	Name              string
 	Action            constslib.SkillAction
 	SkillType         constslib.SkillType // "Physical", "Magic", "Utility", "Effect"
@@ -39,6 +41,33 @@ type Skill struct {
 
 	StaminaDamage        float64 // Dano causado à stamina do bloqueador (ou 0 se não aplicar)
 	CanCastWhileBlocking bool
+
+	Tags *SkillTags // ← adiciona aqui
+
+}
+
+type SkillState struct {
+	Skill       *Skill
+	StartedAt   time.Time
+	WindUpUntil time.Time
+
+	CastUntil     time.Time
+	RecoveryUntil time.Time
+	CooldownUntil time.Time
+	InUse         bool
+
+	ChargesLeft int
+	LastUsedAt  time.Time
+
+	EffectApplied   bool
+	WindUpFired     bool // ✅ novo campo
+	CastFired       bool
+	RecoveryFired   bool   // <- novo campo
+	NextQueuedSkill *Skill // NOVO: permite enfileirar próxima skill
+	WasInterrupted  bool   // NOVO: indica se esta execução foi interrompida
+	AppliedBuffID   string
+
+	HasAggressiveIntentRegistered bool
 }
 
 type MovementConfig struct {
@@ -129,37 +158,46 @@ type SkillResult struct {
 	WasAOEHit     bool
 }
 
-type SkillState struct {
-	Skill       *Skill
-	StartedAt   time.Time
-	WindUpUntil time.Time
-	WindUpFired bool // ✅ novo campo
-
-	CastUntil     time.Time
-	RecoveryUntil time.Time
-	CooldownUntil time.Time
-	InUse         bool
-
-	ChargesLeft int
-	LastUsedAt  time.Time
-
-	EffectApplied    bool
-	HasCastBeenFired bool   // <- novo campo
-	NextQueuedSkill  *Skill // NOVO: permite enfileirar próxima skill
-	WasInterrupted   bool   // NOVO: indica se esta execução foi interrompida
-	AppliedBuffID    string
-
-	HasAggressiveIntentRegistered bool
-}
-
 func (s *SkillState) CanBeCancelled() bool {
+	if s == nil || s.Skill == nil || !s.InUse || !s.Skill.Interruptible {
+		return false
+	}
+
 	now := time.Now()
 
+	// Windup: sempre cancelável
 	if now.Before(s.WindUpUntil) {
-		return true // Ainda está no Windup
+		return true
 	}
+
+	// Cast: só se interruptível
+	if now.After(s.WindUpUntil) && now.Before(s.CastUntil) {
+		return s.Skill.Interruptible
+	}
+
+	// Recovery: só se já ativou o efeito
 	if now.After(s.CastUntil) && now.Before(s.RecoveryUntil) {
-		return true // Está no Recovery
+		return s.RecoveryFired // 💡 nova trava
 	}
-	return false // Está no Cast ou já terminou
+
+	return false
+}
+
+type SkillTags struct {
+	values map[string]bool
+}
+
+func NewSkillTags(tags ...string) *SkillTags {
+	t := &SkillTags{values: make(map[string]bool)}
+	for _, tag := range tags {
+		t.values[tag] = true
+	}
+	return t
+}
+
+func (t *SkillTags) Has(tag constslib.SkillTag) bool {
+	if t == nil {
+		return false
+	}
+	return t.values[string(tag)]
 }

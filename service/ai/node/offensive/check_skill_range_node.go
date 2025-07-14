@@ -19,6 +19,10 @@ func (n *CheckSkillRangeNode) Tick(c *creature.Creature, ctx interface{}) interf
 		return core.StatusSuccess
 	}
 
+	if c.MoveCtrl.IsMoving {
+		return core.StatusRunning
+	}
+
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
 		log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)
@@ -26,28 +30,27 @@ func (n *CheckSkillRangeNode) Tick(c *creature.Creature, ctx interface{}) interf
 	}
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
-
 	if target == nil {
 		log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] nenhum alvo válido", c.Handle.String(), c.PrimaryType)
 		return core.StatusFailure
 	}
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
+	rangeNeeded := c.NextSkillToUse.Range
 
-	if dist <= c.NextSkillToUse.Range {
-		// Já está no range → limpa movimento e permite seguir no sequence
+	if dist <= rangeNeeded {
 		c.ClearMovementIntent()
-		log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] no range para %s (dist=%.2f, range=%.2f)",
-			c.Handle.String(), c.PrimaryType, c.NextSkillToUse.Name, dist, c.NextSkillToUse.Range)
+		log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] dentro do range (%.2f <= %.2f), permitindo execução de skill",
+			c.Handle.String(), c.PrimaryType, dist, rangeNeeded)
 		return core.StatusSuccess
 	}
 
-	// Fora do range → indica que precisa seguir perseguindo
-	log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] fora do range (dist=%.2f, range=%.2f), seguir chase",
-		c.Handle.String(), c.PrimaryType, dist, c.NextSkillToUse.Range)
+	// Está fora do alcance da skill
+	log.Printf("[CHECK-SKILL-RANGE] [%s (%s)] fora do range (%.2f > %.2f), mantendo movimento",
+		c.Handle.String(), c.PrimaryType, dist, rangeNeeded)
 	return core.StatusRunning
 }
 
-func (n *CheckSkillRangeNode) Reset() {
-	// Nada a resetar
+func (n *CheckSkillRangeNode) Reset(c *creature.Creature) {
+	c.ClearMovementIntent()
 }

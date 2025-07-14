@@ -49,4 +49,4 @@ func (n *RegenerateNeedNode) Tick(c *creature.Creature, ctx interface{}) interfa
 	return core.StatusRunning
 }
 
-func (n *RegenerateNeedNode) Reset() {}
+func (n *RegenerateNeedNode) Reset(c *creature.Creature) {}

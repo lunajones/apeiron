@@ -19,9 +19,9 @@ func (n *AlwaysSuccessNode) Tick(c *creature.Creature, ctx interface{}) interfac
 }
 
 // Reset reseta o node interno, se houver.
-func (n *AlwaysSuccessNode) Reset() {
+func (n *AlwaysSuccessNode) Reset(c *creature.Creature) {
 	if n.inner != nil {
-		n.inner.Reset()
+		n.inner.Reset(c)
 	}
 }
 

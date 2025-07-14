@@ -104,6 +104,6 @@ func (n *EvaluateNeedsNode) indexOf(t consts.NeedType) int {
 	return len(n.PriorityOrder)
 }
 
-func (n *EvaluateNeedsNode) Reset() {
+func (n *EvaluateNeedsNode) Reset(c *creature.Creature) {
 	// Noop: nenhum estado interno a resetar
 }

@@ -26,6 +26,6 @@ func (n *CheckCombatStateNode) Tick(c *creature.Creature, ctx interface{}) inter
 	return core.StatusFailure
 }
 
-func (n *CheckCombatStateNode) Reset() {
+func (n *CheckCombatStateNode) Reset(c *creature.Creature) {
 	// Nada a resetar
 }

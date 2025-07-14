@@ -31,4 +31,4 @@ func (n *FaceTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{}
 	return core.StatusSuccess
 }
 
-func (n *FaceTargetNode) Reset() {}
+func (n *FaceTargetNode) Reset(c *creature.Creature) {}

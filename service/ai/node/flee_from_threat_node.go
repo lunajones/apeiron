@@ -88,7 +88,7 @@ func (n *FleeFromThreatNode) Tick(c *creature.Creature, ctx interface{}) interfa
 	return core.StatusRunning
 }
 
-func (n *FleeFromThreatNode) Reset() {}
+func (n *FleeFromThreatNode) Reset(c *creature.Creature) {}
 
 func resolveThreat(c *creature.Creature, targets []model.Targetable) model.Targetable {
 	for _, t := range targets {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/service/ai/core"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
@@ -14,69 +15,38 @@ import (
 type PlanOffensiveSkillNode struct{}
 
 func (n *PlanOffensiveSkillNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-	now := time.Now()
-
-	// Verifica se é hora de planejar novamente
-	// if now.Before(c.NextAggressiveDecisionAllowed) {
-	// 	log.Printf("[PLAN-SKILL] [%s (%s)] aguardando próxima decisão agressiva até %s",
-	// 		c.Handle.String(), c.PrimaryType, c.NextAggressiveDecisionAllowed.Format("15:04:05.000"))
-	// 	return core.StatusRunning
-	// }
-
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
-		log.Printf("[PLAN-SKILL] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)
+		log.Printf("[PLAN-OFFENSIVE] [%s] contexto inválido", c.Handle.String())
 		return core.StatusFailure
 	}
 
-	best := helper.FindBestOffensiveSkill(c, svcCtx, now)
-	if best != nil {
-		c.NextSkillToUse = best
+	// Já tem skill pronta
+	if c.NextSkillToUse != nil {
+		color.Red("[PLAN-OFFENSIVE] Já tem skill planejada")
 
-		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-			SourceHandle: c.Handle,
-			BehaviorType: "OffensiveSkillPlanned",
-			Timestamp:    now,
-		})
-
-		log.Printf("%s", color.New(color.FgRed).Sprintf(
-			"[PLAN-SKILL] [%s (%s)] planejou skill ofensiva: %s",
-			c.Handle.String(), c.PrimaryType, best.Name,
-		))
-
-		// Atualiza próximo momento permitido para planejar
-		// c.NextAggressiveDecisionAllowed = now.Add(500 * time.Millisecond) // ajuste o valor conforme o ritmo desejado
 		return core.StatusSuccess
 	}
 
-	basic := helper.FindBasicAttack(c, now)
-	if basic != nil {
-		c.NextSkillToUse = basic
+	// color.Red("[PLAN-OFFENSIVE] [%s] acionou planejamento: %s", c.GetPrimaryType())
 
-		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-			SourceHandle: c.Handle,
-			BehaviorType: "OffensiveSkillPlanned",
-			Timestamp:    now,
-		})
+	c.RecentActions = append(c.RecentActions, constslib.CombatActionAttackPrepared)
 
-		log.Printf("%s", color.New(color.FgYellow).Sprintf(
-			"[PLAN-SKILL] [%s (%s)] fallback para ataque básico: %s",
-			c.Handle.String(), c.PrimaryType, basic.Name,
-		))
-
-		// c.NextAggressiveDecisionAllowed = now.Add(500 * time.Millisecond) // mesmo delay no fallback
-		return core.StatusSuccess
+	// Busca melhor skill usando helper (já validando bloqueio, dodge, distância, cast, drive, etc)
+	bestSkill := helper.FindBestOffensiveSkill(c, svcCtx, time.Now())
+	if bestSkill == nil {
+		return core.StatusFailure
 	}
 
-	log.Printf("%s", color.New(color.FgHiBlack).Sprintf(
-		"[PLAN-SKILL] [%s (%s)] nenhuma skill disponível para planejar",
-		c.Handle.String(), c.PrimaryType,
-	))
-	c.NextSkillToUse = nil
+	c.NextSkillToUse = bestSkill
+	c.LastSkillPlannedAt = time.Now()
 
-	// Mesmo sem skill, aplica um pequeno delay para evitar spam
-	// c.NextAggressiveDecisionAllowed = now.Add(300 * time.Millisecond)
-	return core.StatusRunning
+	c.CombatState = constslib.CombatStateMoving
+
+	color.Red("[PLAN-OFFENSIVE] [%s] Planejada skill: %s", c.Handle.String(), bestSkill.Name)
+	return core.StatusSuccess
 }
 
-func (n *PlanOffensiveSkillNode) Reset() {}
+func (n *PlanOffensiveSkillNode) Reset(c *creature.Creature) {
+	log.Printf("[PLAN-SKILL] [RESET] [%s (%s)]", c.Handle.String(), c.PrimaryType)
+}

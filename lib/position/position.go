@@ -94,3 +94,27 @@ func (p Position) Sub2D(other Position) Vector2D {
 		Z: p.Z - other.Z,
 	}
 }
+
+// AddVector2D soma um Vector2D (X,Z) a uma Position, mantendo o Y original
+func (p Position) AddVector2D(v Vector2D) Position {
+	return Position{
+		X: p.X + v.X,
+		Y: p.Y, // mantemos altura original
+		Z: p.Z + v.Z,
+	}
+}
+
+func LerpVector2D(v1, v2 Vector2D, t float64) Vector2D {
+	return Vector2D{
+		X: v1.X + (v2.X-v1.X)*t,
+		Z: v1.Z + (v2.Z-v1.Z)*t,
+	}
+}
+
+func (p Position) LerpTo(dest Position, t float64) Position {
+	return Position{
+		X: p.X + (dest.X-p.X)*t,
+		Y: p.Y + (dest.Y-p.Y)*t,
+		Z: p.Z + (dest.Z-p.Z)*t,
+	}
+}

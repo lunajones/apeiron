@@ -44,11 +44,16 @@ const (
 	CombatStateDead           CombatState = 1 << 9
 	CombatStateDodging        CombatState = 1 << 10
 	CombatStateFleeing        CombatState = 1 << 11
-	CombatStateAggressive     CombatState = 1 << 12
-	CombatStateDefensive      CombatState = 1 << 13
-	CombatStateStrategic      CombatState = 1 << 14
-	CombatStateRaging         CombatState = 1 << 15
-	CombatStateCautious       CombatState = 1 << 16
+	CombatStateCasting        CombatState = 1 << 17
+	CombatStateMoving         CombatState = 1 << 18
+	CombatStatePlanning       CombatState = 1 << 19
+
+	//vou arrancar essa merda que me atrasou.
+	CombatStateAggressive CombatState = 1 << 12
+	CombatStateDefensive  CombatState = 1 << 13
+	CombatStateStrategic  CombatState = 1 << 14
+	CombatStateRaging     CombatState = 1 << 15
+	CombatStateCautious   CombatState = 1 << 16
 )
 
 // AnimationState representa o estado visual da criatura (animação, som, FX)
@@ -77,6 +82,46 @@ const (
 	AnimationRecovery    AnimationState = "Recovery"
 	AnimationWindup      AnimationState = "Windup"
 	AnimationCast        AnimationState = "Cast"
+)
+
+type CombatAction string
+
+const (
+	CombatActionBlockSuccess     CombatAction = "BlockSuccess"
+	CombatActionParrySuccess     CombatAction = "ParrySuccess"
+	CombatActionDodgeSuccess     CombatAction = "DodgeSuccess"
+	CombatActionMicroRetreat     CombatAction = "MicroRetreat"
+	CombatActionCircleAround     CombatAction = "CircleAround"
+	CombatActionApproach         CombatAction = "Approach"
+	CombatActionChase            CombatAction = "Chase"
+	CombatActionAttackSuccess    CombatAction = "AttackSuccess"
+	CombatActionAttackMissed     CombatAction = "AttackMissed"
+	CombatActionAttackPrepared   CombatAction = "AttackPrepared"
+	CombatActionSkillInterrupted CombatAction = "SkillInterrupted"
+	CombatActionCounter          CombatAction = "Counter"
+	CombatActionTookDamage       CombatAction = "TookDamage"
+)
+
+type MovementPlanType string
+
+const (
+	MovementPlanNone         MovementPlanType = ""
+	MovementPlanApproach     MovementPlanType = "Approach"
+	MovementPlanChase        MovementPlanType = "Chase"
+	MovementPlanMicroRetreat MovementPlanType = "MicroRetreat"
+	MovementPlanCircle       MovementPlanType = "Circle"
+	MovementPlanCounter      MovementPlanType = "Counter"
+)
+
+type SkillTag string
+
+const (
+	SkillTagBurst     SkillTag = "Burst"     // dano alto em pouco tempo
+	SkillTagInterrupt SkillTag = "Interrupt" // ideal pra punir cast
+	SkillTagRush      SkillTag = "Rush"      // skills de avanço ou engage rápido
+	SkillTagAOE       SkillTag = "AOE"       // dano em área
+	SkillTagDOT       SkillTag = "DOT"       // dano ao longo do tempo
+	SkillTagUtility   SkillTag = "Utility"   // buffs, counters, stance etc
 )
 
 // SkillAction representa a skill ou combo em execução
@@ -144,6 +189,7 @@ const (
 	NeedPlan    NeedType = "Plan"
 	NeedFake    NeedType = "Fake"
 	NeedRage    NeedType = "Rage"
+	NeedCounter NeedType = "Rage"
 )
 
 type Need struct {

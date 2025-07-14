@@ -36,6 +36,6 @@ func (n *CheckOrEnterExitCombatNode) Tick(c *creature.Creature, ctx interface{})
 	return core.StatusSuccess
 }
 
-func (n *CheckOrEnterExitCombatNode) Reset() {
+func (n *CheckOrEnterExitCombatNode) Reset(c *creature.Creature) {
 	// Nada necessário
 }

@@ -47,8 +47,8 @@ func (d *InterruptOnThreatDecorator) Tick(c *creature.Creature, ctx interface{})
 	return core.StatusFailure
 }
 
-func (d *InterruptOnThreatDecorator) Reset() {
+func (d *InterruptOnThreatDecorator) Reset(c *creature.Creature) {
 	if d.ChildNode != nil {
-		d.ChildNode.Reset()
+		d.ChildNode.Reset(c)
 	}
 }

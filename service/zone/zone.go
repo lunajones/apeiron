@@ -73,7 +73,12 @@ func (z *Zone) Tick(elapsed float64) {
 		// Atualiza os alvos visíveis no contexto antes de usar
 		svcCtx.CacheFor(c.Handle, c.Position, c.DetectionRadius)
 		c.Tick(svcCtx, elapsed)
+		// Visualização do grid (ativar somente em debug ou condição específica)
+
 	}
+	// Visualização do grid (ativar somente em debug ou condição específica)
+	// PrintWorldGridAAA(z.Creatures, z.NavMesh)
+
 }
 
 func (z *Zone) processRespawn(c *creature.Creature) {

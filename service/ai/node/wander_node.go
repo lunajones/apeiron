@@ -130,4 +130,4 @@ func rotateFacing(c *creature.Creature, angleDegrees float64) {
 	c.FacingDirection = position.RotateVector2D(c.FacingDirection, angleRad)
 }
 
-func (n *WanderNode) Reset() {}
+func (n *WanderNode) Reset(c *creature.Creature) {}

@@ -30,4 +30,9 @@ type Targetable interface {
 	IsInvulnerableNow() bool
 	ApplyPostureDamage(amount float64)
 	IsInParryWindow() bool
+
+	IsCasting() bool
+	GetFaction() string
+
+	GetCombatDrive() *CombatDrive
 }

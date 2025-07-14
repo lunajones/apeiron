@@ -55,4 +55,4 @@ func (n *FindSafePlaceToSleepNode) Tick(c *creature.Creature, ctx interface{}) i
 	return core.StatusRunning
 }
 
-func (n *FindSafePlaceToSleepNode) Reset() {}
+func (n *FindSafePlaceToSleepNode) Reset(c *creature.Creature) {}

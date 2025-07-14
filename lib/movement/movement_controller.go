@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/lunajones/apeiron/lib/consts"
+	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/physics"
@@ -17,6 +19,14 @@ type MoveIntent struct {
 	Speed          float64
 	StopDistance   float64
 	HasIntent      bool
+}
+
+type ImpulseMovementState struct {
+	Active   bool
+	Start    time.Time
+	Duration time.Duration
+	StartPos position.Position
+	EndPos   position.Position
 }
 
 type MovementController struct {
@@ -37,7 +47,8 @@ type MovementController struct {
 	triedSidestep     bool
 	WasBlocked        bool
 	CurrentIntentDest position.Position // 🌟 novo campo
-
+	ImpulseState      *ImpulseMovementState
+	MovementPlan      *MovementPlan
 }
 
 func NewMovementController() *MovementController {
@@ -62,6 +73,24 @@ func (m *MovementController) UpdateTargetPosition(pos position.Position) {
 }
 
 func (m *MovementController) Update(mov model.Movable, deltaTime float64, ctx *dynamic_context.AIServiceContext) bool {
+
+	// 🌟 Execução de impulso lateral (dodge lateral)
+	if m.ImpulseState != nil && m.ImpulseState.Active {
+		now := time.Now()
+		elapsed := now.Sub(m.ImpulseState.Start)
+		t := float64(elapsed) / float64(m.ImpulseState.Duration)
+
+		if t >= 1.0 {
+			mov.SetPosition(m.ImpulseState.EndPos)
+			m.ImpulseState = nil
+			return true
+		}
+
+		newPos := m.ImpulseState.StartPos.LerpTo(m.ImpulseState.EndPos, t)
+		mov.SetPosition(newPos)
+		return true
+	}
+
 	if m.Intent.HasIntent {
 		m.SetTarget(m.Intent.TargetPosition, m.Intent.Speed, m.Intent.StopDistance)
 		m.Intent.HasIntent = false
@@ -171,6 +200,22 @@ func (m *MovementController) Update(mov model.Movable, deltaTime float64, ctx *d
 	return false
 }
 
+type MovementPlan struct {
+	Type            consts.MovementPlanType
+	TargetHandle    handle.EntityHandle
+	DesiredDistance float64
+	ExpiresAt       time.Time
+}
+
+func NewMovementPlan(planType constslib.MovementPlanType, target handle.EntityHandle, distance float64, duration time.Duration) *MovementPlan {
+	return &MovementPlan{
+		Type:            planType,
+		TargetHandle:    target,
+		DesiredDistance: distance,
+		ExpiresAt:       time.Now().Add(duration),
+	}
+}
+
 func (m *MovementController) SetTarget(pos position.Position, speed, stopDist float64) {
 	m.TargetHandle = handle.EntityHandle{}
 	m.TargetPosition = pos
@@ -206,4 +251,25 @@ func (m *MovementController) Stop() {
 	m.CurrentPath = nil
 	m.PathIndex = 0
 	m.Intent.HasIntent = false
+}
+
+func (m *MovementController) SetImpulseMovement(current position.Position, dest position.Position, duration time.Duration) {
+	m.ImpulseState = &ImpulseMovementState{
+		Active:   true,
+		Start:    time.Now(),
+		Duration: duration,
+		StartPos: current,
+		EndPos:   dest,
+	}
+	m.IsMoving = false
+	m.CurrentPath = nil
+	m.PathIndex = 0
+}
+
+func (p *MovementPlan) IsActive() bool {
+	return p != nil && time.Now().Before(p.ExpiresAt)
+}
+
+func (p *MovementPlan) Is(planType consts.MovementPlanType) bool {
+	return p != nil && p.Type == planType && p.IsActive()
 }

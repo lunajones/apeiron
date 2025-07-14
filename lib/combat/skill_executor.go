@@ -146,12 +146,6 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 
 	if target.IsInvulnerableNow() {
 		log.Printf("[SkillExecutor] [%s] invulnerável no momento, dano evitado de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
-		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-			SourceHandle: attacker.GetHandle(),
-			TargetHandle: target.GetHandle(),
-			BehaviorType: "DamageAvoided",
-			Timestamp:    time.Now(),
-		})
 		return result
 	}
 
@@ -163,7 +157,6 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 
 	// 🔄 BLOQUEIO E PARRY
 	if target.IsBlocking() {
-		now := time.Now()
 		blockDir := target.GetFacingDirection()
 		attackDir := position.NewVector2DFromTo(target.GetPosition(), attacker.GetPosition())
 		dot := blockDir.Dot(attackDir)
@@ -172,23 +165,11 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 			// PARRY
 			if target.IsInParryWindow() {
 				log.Printf("[PARRY] [%s] executou parry em [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
-				svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-					SourceHandle: target.GetHandle(),
-					TargetHandle: attacker.GetHandle(),
-					BehaviorType: "Parry",
-					Timestamp:    now,
-				})
 				return result // Parry bem-sucedido cancela ataque
 			}
 
 			// BLOQUEIO bem-sucedido
 			log.Printf("[BLOCK] [%s] bloqueou ataque de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
-			svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-				SourceHandle: target.GetHandle(),
-				TargetHandle: attacker.GetHandle(),
-				BehaviorType: "DefensePerformed",
-				Timestamp:    now,
-			})
 
 			// Aplica posture damage dobrado
 			if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
@@ -201,14 +182,6 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 		} else {
 			// BLOQUEIO mal direcionado
 			log.Printf("[BLOCK-FAILED] [%s] bloqueou em direção errada, ataque passou", target.GetHandle().ID)
-
-			// Ainda assim registra tentativa de defesa
-			svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-				SourceHandle: target.GetHandle(),
-				TargetHandle: attacker.GetHandle(),
-				BehaviorType: "DefenseFailed",
-				Timestamp:    now,
-			})
 
 		}
 	}
@@ -240,8 +213,8 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 		target.ApplyEffect(effect)
 	}
 
-	log.Printf("[SkillExecutor] [%s (%s)] usou %s em [%s] causando %d de dano",
-		attacker.GetHandle().ID, attacker.GetPrimaryType(), skill.Name, target.GetHandle().ID, damage)
+	// log.Printf("[SkillExecutor] [%s (%s)] usou %s em [%s] causando %d de dano",
+	// 	attacker.GetHandle().ID, attacker.GetPrimaryType(), skill.Name, target.GetHandle().ID, damage)
 
 	result.Success = true
 	return result

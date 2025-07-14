@@ -19,6 +19,6 @@ func (n *ActionNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	return n.action(c, ctx)
 }
 
-func (n *ActionNode) Reset() {
+func (n *ActionNode) Reset(c *creature.Creature) {
 	// Nada a resetar
 }

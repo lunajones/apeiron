@@ -50,6 +50,6 @@ func hasAnyTag(other *creature.Creature, tags []consts.CreatureTag) bool {
 	return false
 }
 
-func (n *SearchPreyNode) Reset() {
+func (n *SearchPreyNode) Reset(c *creature.Creature) {
 	// Nada a resetar
 }

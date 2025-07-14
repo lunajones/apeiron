@@ -14,6 +14,16 @@ import (
 type ChaseTargetNode struct{}
 
 func (n *ChaseTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
+	if c.IsDodging() {
+		return core.StatusFailure
+	}
+
+	drive := c.GetCombatDrive()
+	if drive.Caution < 0.4 && drive.Caution > 0.8 {
+		log.Printf("[APPROACH-IN-RANGE] [%s] Caution baixo (%.2f), ignorando aproximação tática", c.Handle.String(), drive.Caution)
+		return core.StatusFailure
+	}
+
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
 		log.Printf("[CHASE-TARGET] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)
@@ -54,14 +64,15 @@ func (n *ChaseTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{
 		c.MoveCtrl.SetMoveIntent(target.GetPosition(), c.RunSpeed, stopAt)
 		log.Printf("[CHASE-TARGET] [%s] Novo intent direto ao alvo criado. Dist=%.2f stopAt=%.2f",
 			c.Handle.String(), dist, stopAt)
-
-		// Registra evento de perseguição
-		svcCtx.RegisterCombatBehavior(dynamic_context.CombatBehaviorEvent{
-			SourceHandle: c.Handle,
-			BehaviorType: "ChasePerformed",
-			Timestamp:    time.Now(),
-		})
 	}
+
+	// Atualiza drive por estar perseguindo algo (fome, ação, estímulo)
+	now := time.Now()
+	drive.Rage += 0.02
+	drive.Caution -= 0.01
+	drive.Termination = 0
+	drive.LastUpdated = now
+	drive.Value = creature.RecalculateCombatDrive(drive)
 
 	c.SetAnimationState(constslib.AnimationRun)
 	log.Printf("[CHASE-TARGET] [%s] Perseguindo alvo. Dist=%.2f stopAt=%.2f",
@@ -69,6 +80,7 @@ func (n *ChaseTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{
 	return core.StatusRunning
 }
 
-func (n *ChaseTargetNode) Reset() {
-	// Nada a resetar
+func (n *ChaseTargetNode) Reset(c *creature.Creature) {
+	c.ClearMovementIntent()
+	c.SetAnimationState(constslib.AnimationIdle)
 }

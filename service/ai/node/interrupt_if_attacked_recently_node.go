@@ -35,4 +35,4 @@ func (n *InterruptIfAttackedRecentlyNode) Tick(c *creature.Creature, ctx interfa
 	return core.StatusSuccess
 }
 
-func (n *InterruptIfAttackedRecentlyNode) Reset() {}
+func (n *InterruptIfAttackedRecentlyNode) Reset(c *creature.Creature) {}

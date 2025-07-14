@@ -52,8 +52,8 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 		IsCorpse:    false,
 		Hostile:     true,
 
-		AIState:         constslib.AIStateCombat,
-		CombatState:     constslib.CombatStateDefensive,
+		AIState:         constslib.AIStateIdle,
+		CombatState:     constslib.CombatStateIdle,
 		AnimationState:  constslib.AnimationIdle,
 		LastStateChange: time.Now(),
 
@@ -163,12 +163,13 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 					&node.EvaluateNeedsNode{
 						PriorityOrder: []constslib.NeedType{
 							constslib.NeedHunger,
+							constslib.NeedSleep,
 						},
 					},
 					2*time.Second,
 				),
 				core.NewCooldownDecorator(
-					&node.WanderNode{
+					core.NewCooldownDecorator(&node.WanderNode{
 						MaxDistance:      1.5,
 						SniffChance:      0.2,
 						LookAroundChance: 0.1,
@@ -178,7 +179,7 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 						PlayChance:       0.05,
 						ThreatChance:     0.05,
 						CuriousChance:    0.05,
-					},
+					}, 3*time.Second),
 					3*time.Second,
 				),
 			),
@@ -218,8 +219,28 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 		),
 	)
 
-	tree.AddSubtree(constslib.AIStateChasing,
-		decorator.NewInterruptOnThreatDecorator(
+	// tree.AddSubtree(constslib.AIStateChasing,
+	// 	decorator.NewInterruptOnThreatDecorator(
+	// 		core.NewSequenceNode(
+	// 			core.NewSelectorNode(
+	// 				helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+	// 					return c.NextSkillToUse != nil
+	// 				}),
+	// 				&offensive.PlanOffensiveSkillNode{},
+	// 			),
+	// 			core.NewSelectorNode(
+	// 				&offensive.CheckSkillRangeNode{},
+	// 				&offensive.ChaseTargetNode{},
+	// 			),
+	// 			&offensive.SkillStateNode{},
+	// 		),
+	// 		constslib.AIStateCombat,
+	// 		constslib.AnimationCombatReady,
+	// 	),
+	// )
+	tree.AddSubtree(constslib.AIStateCombat,
+		core.NewSelectorNode(
+			// OFENSIVO
 			core.NewSequenceNode(
 				core.NewSelectorNode(
 					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
@@ -227,102 +248,21 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 					}),
 					&offensive.PlanOffensiveSkillNode{},
 				),
-				core.NewSelectorNode(
-					&offensive.CheckSkillRangeNode{},
-					&offensive.ChaseTargetNode{},
-				),
+				&offensive.CheckSkillRangeNode{},
 				&offensive.SkillStateNode{},
 			),
-			constslib.AIStateCombat,
-			constslib.AnimationCombatReady,
-		),
-	)
 
-	tree.AddSubtree(constslib.AIStateCombat,
-		core.NewSequenceNode(
-			decorator.NewAutoFaceTargetDecorator(
-				core.NewSelectorNode(
+			// DEFENSIVO
+			core.NewSequenceNode(
+				&defensive.CounterMoveNode{},
+				&defensive.MicroRetreatNode{},
+			),
 
-					// 💚 IDLE STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateIdle
-						}),
-						&neutral.CheckOrEnterExitCombatNode{},
-					),
-
-					// 🟠 CAUTIOUS STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateCautious
-						}),
-						core.NewSelectorNode(
-							&neutral.SearchForVisualConfirmationNode{},
-							&neutral.CheckOrEnterExitCombatNode{},
-						),
-					),
-
-					// 🔥 AGGRESSIVE STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateAggressive
-						}),
-						core.NewSelectorNode(
-							core.NewSequenceNode(
-								helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-									// Só planeja se ainda não houver skill nem movimento de skill
-									return c.NextSkillToUse == nil && c.SkillMovementState == nil
-								}),
-								&offensive.PlanOffensiveSkillNode{},
-								&offensive.ChaseUntilInRangeNode{},
-							),
-							&offensive.SkillStateNode{}, // SEMPRE executa enquanto houver skill em andamento
-						),
-					),
-
-					// // 🛡️ DEFENSIVE STATE
-					// core.NewSequenceNode(
-					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-					// 		return c.CombatState == constslib.CombatStateDefensive
-					// 	}),
-					// 	&defensive.DefendIfPossibleNode{},
-					// ),
-
-					// 🎯 STRATEGIC STATE
-					// core.NewSequenceNode(
-					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-					// 		return c.CombatState == constslib.CombatStateStrategic
-					// 	}),
-					// 	core.NewSelectorNode(
-					// 		&neutral.FlankOrRepositionNode{},
-					// 		&neutral.RandomFakeAdvanceChanceNode{},
-					// 	),
-					// ),
-
-					// 🏃 FLEEING STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateFleeing
-						}),
-						&defensive.RetreatNode{},
-					),
-
-					// ⚡ RAGING STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateRaging
-						}),
-						core.NewSelectorNode(
-							&offensive.PlanOffensiveSkillNode{},
-							&offensive.SkillStateNode{},
-							&offensive.CheckSkillRangeNode{},
-							&offensive.ChaseTargetNode{},
-						),
-					),
-
-					// 🌟 SEMPRE roda feedback
-					&helper.CombatFeedbackNode{},
-				),
+			// POSICIONAMENTO
+			core.NewSelectorNode(
+				&neutral.ApproachUntilInRangeNode{},
+				&offensive.ChaseUntilInRangeNode{},
+				&defensive.CircleAroundTargetNode{},
 			),
 		),
 	)

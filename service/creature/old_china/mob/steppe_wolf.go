@@ -105,14 +105,15 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.
 		AggroTable: make(map[handle.EntityHandle]*aggro.AggroEntry),
 		Needs: []constslib.Need{
 			{Type: constslib.NeedHunger, Value: 90, LowThreshold: 0, Threshold: 80},
+			{Type: constslib.NeedThirst, Value: 10, LowThreshold: 0, Threshold: 80},
 			{Type: constslib.NeedSleep, Value: 30, LowThreshold: 0, Threshold: 80},
 			{Type: constslib.NeedProvoke, Value: 5, LowThreshold: 0, Threshold: 50},
 			{Type: constslib.NeedRecover, Value: 0, LowThreshold: 0, Threshold: 60},
-			{Type: constslib.NeedAdvance, Value: 50, LowThreshold: 40, Threshold: 60},
-			{Type: constslib.NeedGuard, Value: 50, LowThreshold: 40, Threshold: 60},
+			{Type: constslib.NeedAdvance, Value: 30, LowThreshold: 40, Threshold: 60},
+			{Type: constslib.NeedGuard, Value: 60, LowThreshold: 40, Threshold: 60},
 			{Type: constslib.NeedRetreat, Value: 5, LowThreshold: 0, Threshold: 30},
 			{Type: constslib.NeedFake, Value: 10, LowThreshold: 0, Threshold: 20},
-			{Type: constslib.NeedPlan, Value: 10, LowThreshold: 0, Threshold: 30},
+			{Type: constslib.NeedPlan, Value: 0, LowThreshold: 0, Threshold: 30},
 			{Type: constslib.NeedRage, Value: 0, LowThreshold: 20, Threshold: 40},
 		},
 		Tags:              []consts.CreatureTag{consts.TagPredator},
@@ -203,8 +204,28 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.
 		),
 	)
 
-	tree.AddSubtree(constslib.AIStateChasing,
-		decorator.NewInterruptOnThreatDecorator(
+	// tree.AddSubtree(constslib.AIStateChasing,
+	// 	decorator.NewInterruptOnThreatDecorator(
+	// 		core.NewSequenceNode(
+	// 			core.NewSelectorNode(
+	// 				helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+	// 					return c.NextSkillToUse != nil
+	// 				}),
+	// 				&offensive.PlanOffensiveSkillNode{},
+	// 			),
+	// 			core.NewSelectorNode(
+	// 				&offensive.CheckSkillRangeNode{},
+	// 				&offensive.ChaseTargetNode{},
+	// 			),
+	// 			&offensive.SkillStateNode{},
+	// 		),
+	// 		constslib.AIStateCombat,
+	// 		constslib.AnimationCombatReady,
+	// 	),
+	// )
+	tree.AddSubtree(constslib.AIStateCombat,
+		core.NewSelectorNode(
+			// OFENSIVO
 			core.NewSequenceNode(
 				core.NewSelectorNode(
 					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
@@ -212,110 +233,22 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.
 					}),
 					&offensive.PlanOffensiveSkillNode{},
 				),
-				core.NewSelectorNode(
-					&offensive.CheckSkillRangeNode{},
-					&offensive.ChaseTargetNode{},
-				),
+				&offensive.CheckSkillRangeNode{},
 				&offensive.SkillStateNode{},
 			),
-			constslib.AIStateCombat,
-			constslib.AnimationCombatReady,
-		),
-	)
-	tree.AddSubtree(constslib.AIStateCombat,
-		core.NewSequenceNode(
-			decorator.NewAutoFaceTargetDecorator(
-				core.NewSelectorNode(
 
-					// 💚 IDLE STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateIdle
-						}),
-						&neutral.CheckOrEnterExitCombatNode{},
-					),
+			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
+			core.NewSequenceNode(
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
+			),
 
-					// 🟠 CAUTIOUS STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateCautious
-						}),
-						core.NewSelectorNode(
-							&neutral.SearchForVisualConfirmationNode{},
-							&neutral.CheckOrEnterExitCombatNode{},
-						),
-					),
-
-					// 🔥 AGGRESSIVE STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateAggressive
-						}),
-						core.NewSelectorNode(
-							core.NewSequenceNode(
-								helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-									// Só planeja se ainda não houver skill nem movimento de skill
-									return c.NextSkillToUse == nil && c.SkillMovementState == nil
-								}),
-								&offensive.PlanOffensiveSkillNode{},
-								&offensive.ChaseUntilInRangeNode{},
-							),
-							&offensive.SkillStateNode{}, // SEMPRE executa enquanto houver skill em andamento
-						),
-					),
-
-					// 🛡️ DEFENSIVE STATE
-					// core.NewSequenceNode(
-					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-					// 		return c.CombatState == constslib.CombatStateDefensive
-					// 	}),
-					// 	core.NewSelectorNode(
-					// 		core.NewSequenceNode(
-					// 			helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-					// 				return c.GetNeedValue(constslib.NeedGuard) > 20
-					// 			}),
-					// 			&defensive.DodgeIfThreatNode{},
-					// 		),
-					// 		//&defensive.ParryIfPossibleNode{},
-					// 		//&defensive.BlockIfPossibleNode{},
-					// 	),
-					// ),
-
-					// 🎯 STRATEGIC STATE
-					// core.NewSequenceNode(
-					// 	helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-					// 		return c.CombatState == constslib.CombatStateStrategic
-					// 	}),
-					// 	core.NewSelectorNode(
-					// 		&neutral.FlankOrRepositionNode{},
-					// 		&neutral.RandomFakeAdvanceChanceNode{},
-					// 	),
-					// ),
-
-					// 🏃 FLEEING STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateFleeing
-						}),
-						&defensive.RetreatNode{},
-					),
-
-					// ⚡ RAGING STATE
-					core.NewSequenceNode(
-						helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-							return c.CombatState == constslib.CombatStateRaging
-						}),
-						core.NewSelectorNode(
-							&offensive.PlanOffensiveSkillNode{},
-							&offensive.SkillStateNode{},
-							&offensive.CheckSkillRangeNode{},
-							&offensive.ChaseTargetNode{},
-						),
-					),
-
-					// 🌟 SEMPRE roda feedback
-					&helper.CombatFeedbackNode{},
-				),
+			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
+			core.NewSelectorNode(
+				&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
+				&helper.OnlyIfFarAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),
 		),
 	)

@@ -24,6 +24,6 @@ func (n *ConditionNode) Tick(c *creature.Creature, ctx interface{}) interface{} 
 	return core.StatusFailure
 }
 
-func (n *ConditionNode) Reset() {
+func (n *ConditionNode) Reset(c *creature.Creature) {
 	// Nada a resetar
 }

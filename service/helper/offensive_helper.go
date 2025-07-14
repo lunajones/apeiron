@@ -1,4 +1,3 @@
-// combo_planner.go
 package helper
 
 import (
@@ -15,8 +14,12 @@ import (
 )
 
 func FindBestOffensiveSkill(c *creature.Creature, svcCtx *dynamic_context.AIServiceContext, now time.Time) *model.Skill {
-	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
+	// NÃO planeja se estiver bloqueando ou esquivando
+	if c.IsBlocking() || c.IsDodging() {
+		return nil
+	}
 
+	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
 	if target == nil {
 		return nil
 	}
@@ -49,7 +52,7 @@ func FindBestOffensiveSkill(c *creature.Creature, svcCtx *dynamic_context.AIServ
 func CalculateSkillScore(c *creature.Creature, target model.Targetable, skill *model.Skill) float64 {
 	score := skill.ScoreBase
 
-	// Dê um pequeno boost base pro ataque básico (caso queira garantir que figure em combos)
+	// Base boost para ataque básico
 	if skill.Action == constslib.Basic {
 		score += 1.0
 	}
@@ -58,7 +61,6 @@ func CalculateSkillScore(c *creature.Creature, target model.Targetable, skill *m
 	if dist <= skill.Range {
 		score += 3.0
 	} else {
-		// Penalização ajustada para o ataque básico parecer mais natural (estilo Deathmarch TW3)
 		if skill.Action == constslib.Basic {
 			score -= (dist - skill.Range) * 0.3
 		} else {
@@ -66,6 +68,35 @@ func CalculateSkillScore(c *creature.Creature, target model.Targetable, skill *m
 		}
 	}
 
+	// DRIVE INFLUÊNCIA TÁTICA
+	drive := c.GetCombatDrive()
+
+	// Se alvo está castando → prioriza skills de interrupção
+	if target.IsCasting() && skill.Tags.Has(constslib.SkillTagInterrupt) {
+		score += 3.0
+	}
+
+	// Se Termination alto → prioriza burst e rush
+	if drive.Termination > 0.6 {
+		if skill.Tags.Has(constslib.SkillTagBurst) {
+			score += 2.0
+		}
+		if skill.Tags.Has(constslib.SkillTagRush) {
+			score += 2.0
+		}
+	}
+
+	// Se Caution alto → prioriza safe range
+	if drive.Caution > 0.5 && skill.Range >= 4.0 {
+		score += 2.0
+	}
+
+	// Se Rage alto → prioriza rush
+	if drive.Rage > 0.5 && skill.Tags.Has(constslib.SkillTagRush) {
+		score += 2.5
+	}
+
+	// COMPORTAMENTO DE CONTROLE E PUNIÇÃO
 	if tgtCreature, ok := target.(*creature.Creature); ok {
 		if tgtCreature.Posture < 20 && skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 			score += 2.0
@@ -98,15 +129,15 @@ func ValidateSkillConditions(c *creature.Creature, skill *model.Skill) bool {
 	return true
 }
 
-func FindBasicAttack(c *creature.Creature, now time.Time) *model.Skill {
+func FindBasicAttack(c *creature.Creature) *model.Skill {
 	for _, skill := range c.RegisteredSkills {
 		if skill != nil && skill.Action == constslib.Basic {
-
+			now := time.Now()
 			state := c.SkillStates[skill.Action]
 			log.Printf("[DEBUG] [%s] encontrou ataque básico: %s (cooldown até %.2fs)",
 				c.Handle.String(),
 				skill.Name,
-				state.CooldownUntil.Sub(time.Now()).Seconds(),
+				state.CooldownUntil.Sub(now).Seconds(),
 			)
 			if state != nil && !now.Before(state.CooldownUntil) {
 				return skill

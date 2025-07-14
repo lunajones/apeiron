@@ -30,8 +30,8 @@ func (d *CooldownDecorator) Tick(c *creature.Creature, ctx interface{}) interfac
 	return d.Node.Tick(c, ctx)
 }
 
-func (d *CooldownDecorator) Reset() {
+func (d *CooldownDecorator) Reset(c *creature.Creature) {
 	if d.Node != nil {
-		d.Node.Reset()
+		d.Node.Reset(c)
 	}
 }

@@ -63,6 +63,14 @@ func RotateVector2D(v Vector2D, angleRad float64) Vector2D {
 	}
 }
 
+// Perpendicular retorna o vetor perpendicular à esquerda no plano 2D
+func (v Vector2D) Perpendicular() Vector2D {
+	return Vector2D{
+		X: -v.Z,
+		Z: v.X,
+	}
+}
+
 func (v Vector2D) Multiply(scalar float64) Vector2D {
 	return Vector2D{
 		X: v.X * scalar,

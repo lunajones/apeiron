@@ -10,6 +10,7 @@ type Player struct {
 	Focus        int
 	Hostile      bool
 	Alive        bool
+	Faction      string
 }
 
 func (p *Player) GetID() string {

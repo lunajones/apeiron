@@ -43,8 +43,8 @@ func (n *ParallelNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	return StatusRunning
 }
 
-func (n *ParallelNode) Reset() {
+func (n *ParallelNode) Reset(c *creature.Creature) {
 	for _, child := range n.children {
-		child.Reset()
+		child.Reset(c)
 	}
 }
