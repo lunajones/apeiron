@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package = "github.com/lunajones/apeiron/service/grpc;grpc";
+
+// Representa um snapshot básico de uma criatura no mundo
+message CreatureSnapshot {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  float x = 4;
+  float y = 5;
+  float z = 6;
+  float hp = 7;
+  float max_hp = 8;
+  string animation = 9;
+  string state = 10;
+  int64 timestamp = 11;
+}
+
+// Stream contínuo de snapshots
+message SnapshotStreamRequest {
+  // Campo reservado para filtragens futuras (ex: zona, facção, etc)
+  string zone = 1;
+}
+
+// Stream de várias criaturas por tick
+message CreatureSnapshotBatch {
+  repeated CreatureSnapshot snapshots = 1;
+}
+
+service CreatureSync {
+  // Server-side streaming: apeiron envia snapshots contínuos
+  rpc StreamCreatureUpdates (SnapshotStreamRequest) returns (stream CreatureSnapshotBatch);
+}
