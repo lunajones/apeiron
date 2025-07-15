@@ -32,7 +32,7 @@ func StartGRPCServer(port string) {
 }
 
 // StreamCreatureUpdates envia snapshots periódicos
-func (s *grpcServer) StreamCreatureUpdates(req *pb.SnapshotStreamRequest, stream CreatureSync_StreamCreatureUpdatesServer) error {
+func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream CreatureSync_StreamCreatureUpdatesServer) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
