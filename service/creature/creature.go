@@ -1522,3 +1522,17 @@ func (c *Creature) ProcessCombatFeedback() {
 	// Limpa ações
 	c.RecentActions = nil
 }
+
+func (c *Creature) GetYaw() float64 {
+	dir := c.FacingDirection // position.Vector2D
+
+	if dir.X == 0 && dir.Z == 0 {
+		return 0 // parado, usa default
+	}
+
+	angle := math.Atan2(dir.X, dir.Z) * (180 / math.Pi)
+	if angle < 0 {
+		angle += 360
+	}
+	return angle
+}
