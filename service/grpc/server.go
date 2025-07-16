@@ -65,7 +65,9 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 					Animation: string(c.AnimationState),
 					State:     string(c.AIState),
 					Timestamp: time.Now().UnixMilli(),
+					Yaw:       float32(c.GetYaw()), // ✅ Incluído aqui
 				}
+
 				batch.Snapshots = append(batch.Snapshots, snap)
 			}
 

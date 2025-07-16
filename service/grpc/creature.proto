@@ -17,6 +17,7 @@ message CreatureSnapshot {
   string animation = 9;
   string state = 10;
   int64 timestamp = 11;
+  float yaw = 12; // 👈 ADICIONADO AQUI
 }
 
 // Stream contínuo de snapshots
