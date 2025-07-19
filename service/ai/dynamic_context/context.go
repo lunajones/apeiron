@@ -11,6 +11,7 @@ type AIServiceContext struct {
 	NavMesh                *navmesh.NavMesh
 	SpatialIndex           navmesh.SpatialIndex
 	perHandleCachedTargets map[handle.EntityHandle][]model.Targetable
+	claimedPositions       map[string]handle.EntityHandle
 }
 
 // Construtor do contexto
@@ -19,6 +20,7 @@ func NewAIServiceContext(navMesh *navmesh.NavMesh, index navmesh.SpatialIndex) *
 		NavMesh:                navMesh,
 		SpatialIndex:           index,
 		perHandleCachedTargets: make(map[handle.EntityHandle][]model.Targetable),
+		claimedPositions:       make(map[string]handle.EntityHandle),
 	}
 }
 
@@ -39,4 +41,34 @@ func (ctx *AIServiceContext) FindByHandle(h handle.EntityHandle) model.Targetabl
 		}
 	}
 	return nil
+}
+
+func (ctx *AIServiceContext) ClaimPosition(pos position.Position, h handle.EntityHandle) bool {
+	key := pos.Key() // tipo "12:7"
+	if existing, ok := ctx.claimedPositions[key]; ok && existing != h {
+		return false
+	}
+	ctx.claimedPositions[key] = h
+	return true
+}
+
+func (ctx *AIServiceContext) ClearClaims(h handle.EntityHandle) {
+	for k, v := range ctx.claimedPositions {
+		if v == h {
+			delete(ctx.claimedPositions, k)
+		}
+	}
+}
+
+func (ctx *AIServiceContext) IsClaimedByOther(pos position.Position, h handle.EntityHandle) bool {
+	key := pos.Key()
+	if existing, ok := ctx.claimedPositions[key]; ok && existing != h {
+		return true
+	}
+	return false
+}
+
+func (ctx *AIServiceContext) GetClaimer(pos position.Position) (handle.EntityHandle, bool) {
+	h, ok := ctx.claimedPositions[pos.Key()]
+	return h, ok
 }

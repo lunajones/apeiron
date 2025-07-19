@@ -1,40 +1,21 @@
 package helper
 
 import (
-	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
-	"github.com/lunajones/apeiron/service/helper/finder"
 )
 
-type OnlyIfCloseAndNotMovingNode struct {
+type OnlyIfNotMovingNode struct {
 	Node core.BehaviorNode
 }
 
-func (n *OnlyIfCloseAndNotMovingNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
-	if !ok {
-		return core.StatusFailure
-	}
-
+func (n *OnlyIfNotMovingNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	if c.MoveCtrl.IsMoving {
 		return core.StatusFailure
 	}
-
-	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
-	if target == nil {
-		return core.StatusFailure
-	}
-
-	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
-	if dist >= 1.0 {
-		return core.StatusFailure
-	}
-
 	return n.Node.Tick(c, ctx)
 }
 
-func (n *OnlyIfCloseAndNotMovingNode) Reset(c *creature.Creature) {
+func (n *OnlyIfNotMovingNode) Reset(c *creature.Creature) {
 
 }

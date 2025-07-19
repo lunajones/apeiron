@@ -12,10 +12,10 @@ import (
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
 	decorator "github.com/lunajones/apeiron/service/ai/core/decorator"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/ai/node/defensive"
 	"github.com/lunajones/apeiron/service/ai/node/helper"
-	"github.com/lunajones/apeiron/service/ai/node/neutral"
 	"github.com/lunajones/apeiron/service/ai/node/offensive"
 	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
@@ -23,7 +23,7 @@ import (
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
-func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.Creature {
+func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64, ctx *dynamic_context.AIServiceContext) *creature.Creature {
 	log.Println("[Creature] Initializing steppe wolf...")
 
 	id := lib.NewUUID()
@@ -117,7 +117,6 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.
 			{Type: constslib.NeedRage, Value: 0, LowThreshold: 20, Threshold: 40},
 		},
 		Tags:              []consts.CreatureTag{consts.TagPredator},
-		FacingDirection:   position.Vector2D{X: 1, Z: 0},
 		Position:          spawnPoint.RandomWithinRadius(spawnRadius),
 		LastPosition:      spawnPoint,
 		ActiveEffects:     []constslib.ActiveEffect{},
@@ -238,22 +237,22 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64) *creature.
 			),
 
 			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
-			core.NewSequenceNode(
-				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
-				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
-				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
+			core.NewSelectorNode(
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+				&helper.OnlyIfNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),
 
 			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
 			core.NewSelectorNode(
-				&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+				// &helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
 				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
-				&helper.OnlyIfFarAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),
 		),
 	)
 
 	c.BehaviorTree = tree
+	c.UpdateFacingDirection(ctx)
 
 	return c
 }

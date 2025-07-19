@@ -26,7 +26,7 @@ func (n *CounterMoveNode) Tick(c *creature.Creature, ctx interface{}) interface{
 	}
 
 	// ⚠️ Verifica se o valor de Counter está alto o suficiente
-	if c.GetCombatDrive().Counter < 0.5 {
+	if c.GetCombatDrive().Counter < 0.5 && c.GetCombatDrive().Counter >= 0.8 {
 		return core.StatusFailure
 	}
 

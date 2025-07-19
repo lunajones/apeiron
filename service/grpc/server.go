@@ -56,7 +56,7 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 				snap := &CreatureSnapshot{
 					Id:        c.Handle.String(),
 					Name:      c.Name,
-					Type:      c.GetPrimaryType(), // Ex: "Wolf", "Soldier"
+					Type:      c.GetPrimaryType(),
 					X:         float32(pos.X),
 					Y:         float32(pos.Y),
 					Z:         float32(pos.Z),
@@ -65,7 +65,8 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 					Animation: string(c.AnimationState),
 					State:     string(c.AIState),
 					Timestamp: time.Now().UnixMilli(),
-					Yaw:       float32(c.GetYaw()), // ✅ Incluído aqui
+					FaceYaw:   float32(c.GetFacingDirection().YawDeg()),
+					TorsoYaw:  float32(c.GetTorsoDirection().YawDeg()),
 				}
 
 				batch.Snapshots = append(batch.Snapshots, snap)

@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/lunajones/apeiron/lib/position"
 )
 
@@ -29,4 +31,5 @@ type Attacker interface {
 	IsPvPEnabled() bool
 	IsAlive() bool
 	IsHungry() bool // se precisar
+	SetLastMissedSkillAt(t time.Time)
 }

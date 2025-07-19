@@ -1,6 +1,7 @@
 package neutral
 
 import (
+	"math"
 	"math/rand"
 	"time"
 
@@ -17,52 +18,42 @@ import (
 type ApproachUntilInRangeNode struct{}
 
 func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-
-	plan := c.MoveCtrl.MovementPlan
-	if plan != nil {
-		if plan.Type == constslib.MovementPlanApproach {
-			if time.Now().Before(plan.ExpiresAt) {
-				color.Yellow("[APPROACH-IN-RANGE] [%s] plano de movimento APPROACH-IN-RANGE ativo, ignorando novo plano", c.Handle.String())
-				return core.StatusRunning
-			} else {
-				color.HiRed("[APPROACH-IN-RANGE] [%s] plano APPROACH-IN-RANGE expirou, limpando movimento", c.Handle.String())
-				c.ClearMovementIntent()
-				c.SetAnimationState(constslib.AnimationIdle)
-				c.MoveCtrl.MovementPlan = nil
-			}
+	if c.MoveCtrl.MovementPlan != nil && c.MoveCtrl.MovementPlan.Type == constslib.MovementPlanApproach {
+		if time.Now().Before(c.MoveCtrl.MovementPlan.ExpiresAt) {
+			color.Yellow("[APPROACH-IN-RANGE] [%s] plano ativo, ignorando novo", c.GetPrimaryType())
+			return core.StatusRunning
+		} else {
+			color.HiRed("[APPROACH-IN-RANGE] [%s] plano expirado, limpando", c.GetPrimaryType())
+			c.ClearMovementIntent()
+			c.SetAnimationState(constslib.AnimationIdle)
+			c.MoveCtrl.MovementPlan = nil
 		}
 	}
 
 	if c.IsDodging() || c.CombatState != constslib.CombatStateMoving {
-		color.HiRed("[APPROACH-IN-RANGE] [%s] não está em estado de movimento ou está esquivando", c.Handle.String())
 		return core.StatusFailure
 	}
 
 	drive := c.GetCombatDrive()
 	if drive.Caution < 0.4 || drive.Caution >= 0.7 {
-		color.Yellow("[APPROACH-IN-RANGE] [%s] Caution %.2f fora do intervalo (0.4 ~ 0.7)", c.Handle.String(), drive.Caution)
+		color.Yellow("[APPROACH-IN-RANGE] [%s] Caution %.2f fora do intervalo", c.GetPrimaryType(), drive.Caution)
 		return core.StatusFailure
 	}
 
 	if c.NextSkillToUse == nil {
-		color.HiMagenta("[APPROACH-IN-RANGE] [%s (%s)] Sem skill planejada", c.Handle.String(), c.PrimaryType)
+		color.HiMagenta("[APPROACH-IN-RANGE] [%s] Sem skill planejada", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
-		color.HiRed("[APPROACH-IN-RANGE] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)
+		color.HiRed("[APPROACH-IN-RANGE] [%s] contexto inválido", c.GetPrimaryType())
 		return core.StatusFailure
-	}
-
-	if c.IsMovementLocked() {
-		color.Blue("[APPROACH-IN-RANGE] [%s] movimento travado até %v", c.Handle.String(), c.GetMovementLockUntil())
-		return core.StatusRunning
 	}
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
 	if target == nil {
-		color.HiRed("[APPROACH-IN-RANGE] [%s (%s)] alvo não encontrado", c.Handle.String(), c.PrimaryType)
+		color.HiRed("[APPROACH-IN-RANGE] [%s] alvo não encontrado", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
@@ -75,38 +66,60 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 		c.ClearMovementIntent()
 		c.SetAnimationState(constslib.AnimationIdle)
 		c.MoveCtrl.MovementPlan = nil
-		color.Green("[APPROACH-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.Handle.String(), c.NextSkillToUse.Name, dist)
+		color.Green("[APPROACH-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.GetPrimaryType(), c.NextSkillToUse.Name, dist)
 		return core.StatusSuccess
 	}
 
-	// 🔸 Caminho com leve desvio lateral
+	// Tentativa de offset lateral com fallback
 	offsetDir := rand.Float64()*2 - 1
 	forwardVec := position.NewVector2DFromTo(c.GetPosition(), target.GetPosition()).Normalize()
 	lateralVec := forwardVec.Perpendicular().Scale(offsetDir * 1.0)
-	destination := target.GetPosition().AddVector2D(lateralVec)
+
+	attempts := 0
+	var destination position.Position
+	for attempts < 4 {
+		destination = target.GetPosition().AddVector2D(lateralVec)
+		if svcCtx.ClaimPosition(destination, c.GetHandle()) {
+			break
+		}
+		// Gira o vetor lateral (±90°)
+		angle := math.Pi / 4 // 45°
+		rotation := (rand.Float64()*2 - 1) * angle
+		sin := math.Sin(rotation)
+		cos := math.Cos(rotation)
+		lateralVec = position.Vector2D{
+			X: lateralVec.X*cos - lateralVec.Z*sin,
+			Z: lateralVec.X*sin + lateralVec.Z*cos,
+		}
+		attempts++
+	}
+
+	if attempts >= 4 {
+		color.Red("[APPROACH-IN-RANGE] [%s] falha ao encontrar célula livre próxima ao alvo", c.GetPrimaryType())
+		return core.StatusFailure
+	}
 
 	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 {
 		walkSpeed := c.WalkSpeed * 0.5
-		c.MoveCtrl.SetMoveIntent(destination, walkSpeed, rangeNeeded)
+		c.MoveCtrl.SetMoveTarget(destination, walkSpeed, rangeNeeded)
 		c.SetAnimationState(constslib.AnimationWalk)
-		c.SetMovementLock(3 * time.Second)
 
-		// ✅ Alimenta MovementPlan
-		c.MoveCtrl.MovementPlan = &movement.MovementPlan{
-			Type:            constslib.MovementPlanApproach,
-			TargetHandle:    target.GetHandle(),
-			DesiredDistance: rangeNeeded,
-			ExpiresAt:       time.Now().Add(5 * time.Second),
-		}
+		c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
+			constslib.MovementPlanApproach,
+			target.GetHandle(),
+			rangeNeeded,
+			5*time.Second,
+			target.GetPosition(),
+		)
 
-		color.HiCyan("[APPROACH-IN-RANGE] [%s] avançando com cautela (dist=%.2f offset=%.2f)", c.Handle.String(), dist, offsetDir)
+		color.HiCyan("[APPROACH-IN-RANGE] [%s] avançando com cautela (dist=%.2f)", c.GetPrimaryType(), dist)
 	}
 
 	return core.StatusRunning
 }
 
 func (n *ApproachUntilInRangeNode) Reset(c *creature.Creature) {
-	color.Yellow("[APPROACH-IN-RANGE] [RESET] [%s (%s)] limpando movimento", c.Handle.String(), c.PrimaryType)
+	color.Yellow("[APPROACH-IN-RANGE] [RESET] [%s] limpando movimento", c.GetPrimaryType())
 	c.ClearMovementIntent()
 	c.SetAnimationState(constslib.AnimationIdle)
 	c.MoveCtrl.MovementPlan = nil

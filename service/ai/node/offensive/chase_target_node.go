@@ -61,7 +61,7 @@ func (n *ChaseTargetNode) Tick(c *creature.Creature, ctx interface{}) interface{
 	}
 
 	if (!c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0) && dist > stopAt {
-		c.MoveCtrl.SetMoveIntent(target.GetPosition(), c.RunSpeed, stopAt)
+		c.MoveCtrl.SetMoveTarget(target.GetPosition(), c.RunSpeed, stopAt)
 		log.Printf("[CHASE-TARGET] [%s] Novo intent direto ao alvo criado. Dist=%.2f stopAt=%.2f",
 			c.Handle.String(), dist, stopAt)
 	}

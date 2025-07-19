@@ -2,6 +2,7 @@ package offensive
 
 import (
 	"log"
+	"math/rand/v2"
 	"time"
 
 	"github.com/fatih/color"
@@ -24,17 +25,16 @@ func (n *SkillStateNode) Tick(c *creature.Creature, ctx interface{}) interface{}
 
 	}
 
-	drive := c.GetCombatDrive()
-	if drive.Rage > 0 && drive.Caution > drive.Rage {
-		log.Printf("[SKILL-STATE] [%s] evitou iniciar estado de skill por Caution > Rage (%.2f > %.2f)", c.Handle.String(), drive.Caution, drive.Rage)
-		c.CombatState = constslib.CombatStateMoving
-
-		// ⚠️ Sinaliza que hesitou atacar
-
-		return core.StatusSuccess
-	}
-
 	if (c.IsBlocking() || c.IsDodging()) && c.CurrentSkillState() != nil && c.CurrentSkillState().CanBeCancelled() {
+		drive := c.GetCombatDrive()
+		if drive.Caution > drive.Rage {
+			log.Printf("[SKILL-STATE] [%s] evitou iniciar estado de skill por Caution > Rage (%.2f > %.2f)", c.Handle.String(), drive.Caution, drive.Rage)
+			c.CombatState = constslib.CombatStateMoving
+
+			// ⚠️ Sinaliza que hesitou atacar
+
+			return core.StatusFailure
+		}
 		log.Printf("[SKILL-STATE] [%s] cancelando skill %s por bloqueio ou esquiva",
 			c.Handle.String(), c.NextSkillToUse.Name)
 		c.CancelCurrentSkill()
@@ -55,14 +55,14 @@ func (n *SkillStateNode) Tick(c *creature.Creature, ctx interface{}) interface{}
 		return core.StatusRunning
 	}
 
-	log.Printf("[SKILL-STATE] [%s] iniciando estado de skill: %s", c.PrimaryType, c.NextSkillToUse.Name)
+	// log.Printf("[SKILL-STATE] [%s] iniciando estado de skill: %s", c.PrimaryType, c.NextSkillToUse.Name)
 
 	state := c.SkillStates[c.NextSkillToUse.Action]
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
 
 	if target == nil {
-		log.Printf("[CIRCLE] [%s (%s)] alvo não encontrado", c.Handle.String(), c.PrimaryType)
+		log.Printf("[SKILL-STATE] [%s (%s)] alvo não encontrado", c.Handle.String(), c.PrimaryType)
 		return core.StatusRunning
 	}
 
@@ -119,6 +119,10 @@ func (n *SkillStateNode) Tick(c *creature.Creature, ctx interface{}) interface{}
 
 	// CAST
 	if !state.CastFired {
+		if c.NextSkillToUse != nil && rand.Float64() < 0.50 {
+			c.RecentActions = append(c.RecentActions, constslib.CombatActionHesitatedAttack)
+			log.Printf("[PLAN-OFFENSIVE] [%s] hesitou antes de atacar (simulando incerteza)", c.Handle.String())
+		}
 
 		if targetCreature, ok := target.(*creature.Creature); ok {
 			if targetCreature.IsBlocking() && !c.NextSkillToUse.CanCastWhileBlocking {

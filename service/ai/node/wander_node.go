@@ -107,27 +107,42 @@ func (n *WanderNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 }
 
 func tryWanderDestination(c *creature.Creature, svcCtx *dynamic_context.AIServiceContext) bool {
-	dest := svcCtx.NavMesh.GetRandomWalkablePoint(c.Position, c.MinWanderDistance, c.MaxWanderDistance)
+	var dest position.Position
+	var distance float64
+	found := false
 
-	distance := position.CalculateDistance2D(c.Position, dest)
-	wanderStop := 0.05 * distance
-	if wanderStop < 0.2 {
-		wanderStop = 0.2
+	for i := 0; i < 5; i++ {
+		dest = svcCtx.NavMesh.GetRandomWalkablePoint(c.Position, c.MinWanderDistance, c.MaxWanderDistance)
+		distance = position.CalculateDistance2D(c.Position, dest)
+		if distance >= 3.0 {
+			found = true
+			break
+		}
 	}
-	if wanderStop > 1.0 {
+
+	if !found {
+		log.Printf("[AI-WANDER] [%s] nenhuma posição válida (dist < 3.0)", c.PrimaryType)
+		return false
+	}
+
+	wanderStop := 0.4 * distance
+	if wanderStop < 1.0 {
 		wanderStop = 1.0
 	}
+	if wanderStop > 2.5 {
+		wanderStop = 2.5
+	}
 
-	c.MoveCtrl.SetMoveIntent(dest, c.WalkSpeed, wanderStop)
-	log.Printf("[AI-WANDER] [%s (%s)] caminhando para (%.2f, %.2f, %.2f) com stop=%.2f",
-		c.Handle.String(), c.PrimaryType, dest.X, dest.Z, dest.Y, wanderStop)
-	log.Printf("[AI-WANDER] %s está em movimento, aguardando chegar no destino", c.Handle.String())
+	c.MoveCtrl.SetMoveTarget(dest, c.WalkSpeed, wanderStop)
+	log.Printf("[AI-WANDER] [%s] caminhando para (%.2f, %.2f, %.2f) com stop=%.2f (dist=%.2f)",
+		c.PrimaryType, dest.X, dest.Z, dest.Y, wanderStop, distance)
+	log.Printf("[AI-WANDER] [%s] está em movimento, aguardando chegada", c.PrimaryType)
 	return true
 }
 
 func rotateFacing(c *creature.Creature, angleDegrees float64) {
 	angleRad := angleDegrees * (math.Pi / 180)
-	c.FacingDirection = position.RotateVector2D(c.FacingDirection, angleRad)
+	c.SetFacingDirection(position.RotateVector2D(c.GetFacingDirection(), angleRad))
 }
 
 func (n *WanderNode) Reset(c *creature.Creature) {}

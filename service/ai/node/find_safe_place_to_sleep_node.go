@@ -42,7 +42,7 @@ func (n *FindSafePlaceToSleepNode) Tick(c *creature.Creature, ctx interface{}) i
 	}
 
 	dest := svcCtx.NavMesh.GetEscapePoint(c.Position, threats, 6.0)
-	c.MoveCtrl.SetMoveIntent(dest, c.WalkSpeed*0.5, 1.5)
+	c.MoveCtrl.SetMoveTarget(dest, c.WalkSpeed*0.5, 1.5)
 
 	if c.AIState != constslib.AIStateSeekingSafePlace {
 		c.ChangeAIState(constslib.AIStateSeekingSafePlace)

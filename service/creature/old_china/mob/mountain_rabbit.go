@@ -11,12 +11,13 @@ import (
 	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
-func NewMountainRabbit(spawnPoint position.Position, spawnRadius float64) *creature.Creature {
+func NewMountainRabbit(spawnPoint position.Position, spawnRadius float64, ctx *dynamic_context.AIServiceContext) *creature.Creature {
 	log.Println("[Creature] Initializing mountain rabbit...")
 
 	id := lib.NewUUID()
@@ -87,7 +88,6 @@ func NewMountainRabbit(spawnPoint position.Position, spawnRadius float64) *creat
 			{Type: constslib.NeedSleep, Value: 30, Threshold: 50},
 		},
 		Tags:              []consts.CreatureTag{consts.TagAnimal, consts.TagPrey, consts.TagCoward},
-		FacingDirection:   position.Vector2D{X: 0, Z: 1},
 		Position:          spawnPoint.RandomWithinRadius(spawnRadius),
 		LastPosition:      spawnPoint,
 		ActiveEffects:     []constslib.ActiveEffect{},
@@ -189,6 +189,8 @@ func NewMountainRabbit(spawnPoint position.Position, spawnRadius float64) *creat
 	// )
 
 	c.BehaviorTree = tree
+
+	c.UpdateFacingDirection(ctx)
 
 	return c
 }

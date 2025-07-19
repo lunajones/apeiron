@@ -25,7 +25,7 @@ package neutral
 // 		switch action {
 // 		case constslib.CombatActionBlockSuccess:
 // 			drive.Rage += 0.1
-// 			drive.Caution -= 0.03
+// 			drive.Caution -= 0.01
 // 			drive.Termination += 0.03
 // 			drive.Counter += 0.2
 
@@ -96,11 +96,19 @@ package neutral
 // 			drive.Counter = 0.0
 
 // 		case constslib.CombatActionTookDamage:
-// 			drive.Rage += 0.3
-// 			drive.Caution -= 0.04
-// 			drive.Termination += 0.05
-// 			drive.Counter += 0.2
+// 			drive.Rage -= 0.07
+// 			drive.Caution += 0.12
+// 			drive.Termination += 0.01
+// 			drive.Counter += 0.24
+
+// 		case constslib.CombatActionHesitatedAttack:
+// 			drive.Caution += 0.12
+// 			drive.Rage -= 0.04
+// 			drive.Termination -= 0.01
+// 			drive.Counter -= 0.04
+
 // 		}
+
 // 	}
 
 // 	// Decaimento

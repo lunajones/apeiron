@@ -141,11 +141,14 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 	result := model.SkillResult{}
 
 	if target == nil || shouldSkipTarget(attacker, target) {
+		attacker.SetLastMissedSkillAt(time.Now())
 		return result
 	}
 
 	if target.IsInvulnerableNow() {
 		log.Printf("[SkillExecutor] [%s] invulnerável no momento, dano evitado de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+		attacker.SetLastMissedSkillAt(time.Now())
+
 		return result
 	}
 
@@ -165,24 +168,24 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 			// PARRY
 			if target.IsInParryWindow() {
 				log.Printf("[PARRY] [%s] executou parry em [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+				attacker.SetLastMissedSkillAt(time.Now())
 				return result // Parry bem-sucedido cancela ataque
 			}
 
 			// BLOQUEIO bem-sucedido
 			log.Printf("[BLOCK] [%s] bloqueou ataque de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
 
-			// Aplica posture damage dobrado
 			if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 				postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
 				target.ApplyPostureDamage(postureDamage * 2)
 				log.Printf("[BLOCK] [%s] aplicou %.1f de posture damage (dobrado)", target.GetHandle().ID, postureDamage*2)
 			}
 
+			attacker.SetLastMissedSkillAt(time.Now())
+
 			return result // Bloqueio nega dano
 		} else {
-			// BLOQUEIO mal direcionado
 			log.Printf("[BLOCK-FAILED] [%s] bloqueou em direção errada, ataque passou", target.GetHandle().ID)
-
 		}
 	}
 
@@ -190,13 +193,11 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 	target.TakeDamage(damage)
 	result.TargetDied = !target.IsAlive()
 
-	// POSTURE NORMAL
 	if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 		postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
 		target.ApplyPostureDamage(postureDamage)
 	}
 
-	// DOT apenas se dano foi aplicado
 	if skill.HasDOT && skill.DOT != nil {
 		dotPower := damage / (skill.DOT.DurationSec / skill.DOT.TickSec)
 		effect := constslib.ActiveEffect{
@@ -212,9 +213,6 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 		}
 		target.ApplyEffect(effect)
 	}
-
-	// log.Printf("[SkillExecutor] [%s (%s)] usou %s em [%s] causando %d de dano",
-	// 	attacker.GetHandle().ID, attacker.GetPrimaryType(), skill.Name, target.GetHandle().ID, damage)
 
 	result.Success = true
 	return result

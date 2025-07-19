@@ -12,10 +12,10 @@ import (
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
 	decorator "github.com/lunajones/apeiron/service/ai/core/decorator"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/ai/node/defensive"
 	"github.com/lunajones/apeiron/service/ai/node/helper"
-	"github.com/lunajones/apeiron/service/ai/node/neutral"
 	"github.com/lunajones/apeiron/service/ai/node/offensive"
 	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
@@ -23,7 +23,7 @@ import (
 	"github.com/lunajones/apeiron/service/creature/consts"
 )
 
-func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creature.Creature {
+func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *dynamic_context.AIServiceContext) *creature.Creature {
 	log.Println("[Creature] Initializing chinese soldier...")
 
 	id := lib.NewUUID()
@@ -131,7 +131,6 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 		Tags: []consts.CreatureTag{
 			consts.TagHumanoid,
 		},
-		FacingDirection:   position.Vector2D{X: 1, Z: 0},
 		Position:          position.Position{X: 0, Y: 0, Z: 0},
 		LastPosition:      position.Position{X: 0, Y: 0, Z: 0},
 		ActiveEffects:     []constslib.ActiveEffect{},
@@ -252,22 +251,24 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64) *creat
 				&offensive.SkillStateNode{},
 			),
 
-			// DEFENSIVO
-			core.NewSequenceNode(
-				&defensive.CounterMoveNode{},
-				&defensive.MicroRetreatNode{},
+			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
+			core.NewSelectorNode(
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+				&helper.OnlyIfNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),
 
-			// POSICIONAMENTO
+			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
 			core.NewSelectorNode(
-				&neutral.ApproachUntilInRangeNode{},
-				&offensive.ChaseUntilInRangeNode{},
-				&defensive.CircleAroundTargetNode{},
+				// &helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
 			),
 		),
 	)
 
 	c.BehaviorTree = tree
+
+	c.UpdateFacingDirection(ctx)
 
 	return c
 }

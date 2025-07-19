@@ -108,3 +108,19 @@ func NewVector2DFromTo(from, to Position) Vector2D {
 		Z: to.Z - from.Z,
 	}.Normalize()
 }
+
+// YawDeg retorna o ângulo (em graus) correspondente à direção do vetor.
+// Retorna valores entre -180 e +180 graus, onde 0 aponta para +X.
+func (v Vector2D) YawDeg() float64 {
+	return math.Atan2(v.Z, v.X) * 180 / math.Pi
+}
+
+// FromYawDeg cria um vetor unitário a partir de um ângulo em graus.
+// O ângulo 0 aponta para +X, 90 para +Z, -90 para -Z, etc.
+func FromYawDeg(yaw float64) Vector2D {
+	rad := yaw * math.Pi / 180
+	return Vector2D{
+		X: math.Cos(rad),
+		Z: math.Sin(rad),
+	}
+}

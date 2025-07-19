@@ -3,7 +3,6 @@ package helper
 import (
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/helper/finder"
 )
@@ -13,12 +12,12 @@ type OnlyIfFarAndNotMovingNode struct {
 }
 
 func (n *OnlyIfFarAndNotMovingNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
-	if !ok {
+	if c.MoveCtrl.IsMoving {
 		return core.StatusFailure
 	}
 
-	if c.MoveCtrl.IsMoving {
+	svcCtx := c.GetContext()
+	if svcCtx == nil {
 		return core.StatusFailure
 	}
 
@@ -28,13 +27,11 @@ func (n *OnlyIfFarAndNotMovingNode) Tick(c *creature.Creature, ctx interface{}) 
 	}
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
-	if dist <= 1.0 {
+	if dist <= 4.5 {
 		return core.StatusFailure
 	}
 
 	return n.Node.Tick(c, ctx)
 }
 
-func (n *OnlyIfFarAndNotMovingNode) Reset(c *creature.Creature) {
-
-}
+func (n *OnlyIfFarAndNotMovingNode) Reset(c *creature.Creature) {}

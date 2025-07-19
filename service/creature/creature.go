@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/lunajones/apeiron/lib"
 	"github.com/lunajones/apeiron/lib/combat"
 	constslib "github.com/lunajones/apeiron/lib/consts"
@@ -139,8 +138,10 @@ type Creature struct {
 	MentalState    consts.MentalState
 	DamageWeakness map[constslib.DamageType]float32
 
-	FacingDirection position.Vector2D
-	LastThreatSeen  time.Time
+	facingDirection position.Vector2D
+	torsoDirection  position.Vector2D
+
+	LastThreatSeen time.Time
 
 	AggroTable        map[handle.EntityHandle]*aggro.AggroEntry
 	LastKnownDistance float64
@@ -163,6 +164,12 @@ type Creature struct {
 
 	casting            bool
 	LastSkillPlannedAt time.Time
+	LastDodgeDirection position.Vector2D
+
+	lastMissedSkillAt time.Time
+	lastCircleAt      time.Time
+
+	context *dynamic_context.AIServiceContext
 }
 
 func (c *Creature) GetHandle() handle.EntityHandle {
@@ -224,7 +231,19 @@ func (c *Creature) GetLastPosition() position.Position {
 }
 
 func (c *Creature) SetFacingDirection(dir position.Vector2D) {
-	c.FacingDirection = dir
+	c.facingDirection = dir
+}
+
+func (c *Creature) GetFacingDirection() position.Vector2D {
+	return c.facingDirection
+}
+
+func (c *Creature) SetTorsoDirection(dir position.Vector2D) {
+	c.torsoDirection = dir
+}
+
+func (c *Creature) GetTorsoDirection() position.Vector2D {
+	return c.torsoDirection
 }
 
 var creatures []*Creature
@@ -234,12 +253,15 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 	if !c.Alive {
 		return
 	}
-	c.PerformDefensiveAction(ctx, deltaTime)
+	c.SetContext(ctx)
+	c.UpdateFacingDirection(c.GetContext())
+
+	c.PerformDefensiveAction(deltaTime)
 	// 3️⃣ Atualiza movimento baseado em habilidades (ex: Leap)
 	if c.SkillMovementState != nil && c.SkillMovementState.Active {
-		target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, ctx)
+		target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, c.GetContext())
 
-		if combat.UpdateSkillMovement(c, c.SkillMovementState, target, ctx.NavMesh, ctx, deltaTime) {
+		if combat.UpdateSkillMovement(c, c.SkillMovementState, target, ctx.NavMesh, c.GetContext(), deltaTime) {
 			log.Printf("[LEAP] [%s] SkillMovement concluído", c.Handle.String())
 			c.SkillMovementState = nil
 			c.CombatState = constslib.CombatStateIdle
@@ -248,7 +270,7 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 
 	// 4️⃣ Se não está em movimento de habilidade, atualiza movimento normal
 	if c.SkillMovementState == nil || !c.SkillMovementState.Active {
-		c.MoveCtrl.Update(c, deltaTime, ctx)
+		c.MoveCtrl.Update(c, deltaTime, c.GetContext())
 	}
 
 	// 5️⃣ Ticks de status
@@ -256,16 +278,6 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 	c.TickEffects(deltaTime)
 	c.TickPosture(deltaTime)
 	c.TickStamina(deltaTime)
-
-	if c.IsDodging() && time.Since(c.DodgeStartedAt) > c.DodgeInvulnerabilityDuration {
-		c.SetDodging(false)
-		log.Printf("[DODGE] [%s] fim da invulnerabilidade (%.1fs)", c.Handle.String(), c.DodgeInvulnerabilityDuration.Seconds())
-	}
-
-	// ⬇️ AQUI: comportamento reflexo de combate
-	if c.AIState == constslib.AIStateCombat && c.CombatState != constslib.CombatStateCasting {
-		c.FaceTarget(ctx)
-	}
 
 	c.ProcessCombatFeedback()
 
@@ -276,130 +288,130 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 
 }
 
-func (c *Creature) PerformDefensiveAction(ctx *dynamic_context.AIServiceContext, deltaTime float64) {
+func (c *Creature) PerformDefensiveAction(deltaTime float64) {
 	if !c.Alive {
 		return
 	}
 
 	total := c.BlockableChance + c.DodgableChance
 	if total == 0 {
-		return // criatura não defende
+		return
 	}
 
-	// 🔍 Busca eventos recentes da própria criatura
-	cutoff := time.Now().Add(-1 * time.Second)
-	var latest model.CombatEvent
-	found := false
+	now := time.Now()
+	cutoff := now.Add(-1 * time.Second)
+
+	baseMargin := 120 * time.Millisecond
+	randFactor := 0.8
+	stateReactionFactor := 1.0
+	adjustedMargin := time.Duration(stateReactionFactor * float64(baseMargin))
+
+	var best model.CombatEvent
+	var found bool
+	var bestStart time.Time
 
 	for _, e := range c.GetRecentCombatEvents(cutoff) {
+		if e.BehaviorType != "AggressiveIntention" {
+			continue
+		}
 
-		if e.BehaviorType == "AggressiveIntention" {
-			if !found || e.Timestamp.After(latest.Timestamp) {
-				latest = e
+		castDuration := e.ExpectedImpact.Sub(e.Timestamp)
+		randomMargin := time.Duration(rand.Float64() * randFactor * float64(castDuration))
+
+		start := e.ExpectedImpact.Add(-adjustedMargin).Add(-randomMargin)
+		end := e.ExpectedImpact
+
+		if now.After(start) && now.Before(end) {
+			if !found || start.Before(bestStart) {
+				best = e
+				bestStart = start
 				found = true
 			}
+		} else if now.After(end) {
+			log.Printf("[DEFENSE] [%s] janela passou sem defesa (%s → %s), agora: %s",
+				c.Handle.String(), start.Format("15:04:05.000"), end.Format("15:04:05.000"), now.Format("15:04:05.000"))
+			c.ConsumeCombatEvent(e)
 		}
 	}
 
 	if found {
 		r := rand.Float64() * total
+
+		log.Printf("[DEFENSE] [%s] total=%.2f | dodge=%.2f | block=%.2f | roll=%.2f",
+			c.GetPrimaryType(), total, c.DodgableChance, c.BlockableChance, r)
 		if r < c.DodgableChance {
-			c.TryDodgeReaction(latest, ctx)
+			if c.TryDodgeReaction(best) {
+				c.ConsumeCombatEvent(best)
+			}
 		} else {
-			c.TryBlockReaction(latest, ctx)
+			if c.TryBlockReaction(best) {
+				c.ConsumeCombatEvent(best)
+			}
 		}
 	}
 
-	// Atualiza comportamento mesmo sem evento novo
-	c.PerformDodge(ctx)
+	c.PerformDodge()
 	c.PerformBlock(deltaTime)
 }
 
-func (c *Creature) TryBlockReaction(e model.CombatEvent, svcCtx *dynamic_context.AIServiceContext) {
+func (c *Creature) TryBlockReaction(e model.CombatEvent) bool {
 	if !c.Alive || c.PostureBroken || c.IsBlocking() || c.IsDodging() {
-		return
+		return false
 	}
 
-	if c.NextSkillToUse != nil && !c.CurrentSkillState().CanBeCancelled() {
-		return
+	if !c.CurrentSkillState().CanBeCancelled() {
+		return false
 	}
 
-	// Ajusta margem de tempo conforme o estado de combate
-	baseMargin := 400 * time.Millisecond
-	randFactor := 0.25
-	stateReactionFactor := 2.0
-
-	switch c.CombatState {
-	case constslib.CombatStateDefensive:
-		stateReactionFactor = 1.4
-	case constslib.CombatStateAggressive:
-		stateReactionFactor = 0.6
-	}
-
-	adjustedMargin := time.Duration(stateReactionFactor * float64(baseMargin))
-	castDuration := e.ExpectedImpact.Sub(e.Timestamp)
-	randomMargin := time.Duration(rand.Float64() * randFactor * float64(castDuration))
-
-	start := e.Timestamp
-	end := e.ExpectedImpact.Add(adjustedMargin).Add(randomMargin)
-	now := time.Now()
-
-	if now.After(start) && now.Before(end) {
-
-		c.SetBlocking(true)
-		c.SetDodging(false)
-		c.BlockStartedAt = now
-		c.ConsumeCombatEvent(e)
-		log.Printf("[REACT] [%s] iniciou bloqueio contra %s", c.Handle.String(), e.SourceHandle.ID)
-	}
+	c.SetBlocking(true)
+	c.SetDodging(false)
+	c.BlockStartedAt = time.Now()
+	log.Printf("[REACT] [%s] iniciou bloqueio contra %s", c.Handle.String(), e.SourceHandle.ID)
+	return true
 }
 
 func (c *Creature) PerformBlock(deltaTime float64) {
-	// Se não está bloqueando, nada a fazer (reseta stamina gasta)
 	if !c.IsBlocking() {
 		c.BlockSpentStamina = 0
 		return
 	}
+
 	now := time.Now()
 
-	// Início do bloqueio: aplica custo inicial e define janela de parry
 	if c.BlockDuration == 0 {
-		initialCost := 10.0
-		c.ReduceStamina(initialCost)
-		var parryDuration time.Duration
-		switch c.CombatState {
-		case constslib.CombatStateStrategic:
+		c.ReduceStamina(10.0)
+
+		drive := c.GetCombatDrive()
+		parryDuration := 300 * time.Millisecond
+		switch {
+		case drive.Caution > 0.8:
 			parryDuration = 450 * time.Millisecond
-		case constslib.CombatStateAggressive:
-			parryDuration = 200 * time.Millisecond
-		default:
-			parryDuration = 300 * time.Millisecond
+		case drive.Caution > 0.6:
+			parryDuration = 380 * time.Millisecond
+		case drive.Caution > 0.4:
+			parryDuration = 320 * time.Millisecond
+		case drive.Caution > 0.2:
+			parryDuration = 260 * time.Millisecond
 		}
+
 		c.ParryWindowStart = now
 		c.ParryWindowEnd = now.Add(parryDuration)
 		log.Printf("[PARRY] [%s] parry window ativa por %v", c.Handle.String(), parryDuration)
 
-		c.BlockStaminaTolerance = 5.0 + rand.Float64()*5.0 // rand.Float64 em [0,1):contentReference[oaicite:6]{index=6}
-		c.MaxBlockDuration = generateBlockDuration(c.CombatState)
+		c.BlockStaminaTolerance = 5.0 + rand.Float64()*5.0
+
+		base := 2.5
+		variation := rand.Float64() * 2.5
+		c.MaxBlockDuration = time.Duration((base + variation) * float64(time.Second))
 	}
 
-	// Atualiza duração e consumo de stamina do bloqueio
 	c.BlockDuration += time.Duration(deltaTime * float64(time.Second))
 	staminaPerSecond := 1.0
 	staminaThisTick := staminaPerSecond * deltaTime * 10
 	c.BlockSpentStamina += staminaThisTick
 	c.ReduceStamina(staminaThisTick)
-	// log.Printf("[BLOCK] [%s] mantendo bloqueio, consumiu %.3f stamina neste tick", c.Handle.String(), staminaThisTick)
 	c.SetDodging(false)
-	// log.Printf("[BLOCK-CHECK] [%s] stamina gasta=%.2f, tolerância=%.2f, duração=%.2fs / limite=%.2fs",
-	// 	c.Handle.String(),
-	// 	c.BlockSpentStamina,
-	// 	c.BlockStaminaTolerance,
-	// 	c.BlockDuration.Seconds(),
-	// 	c.MaxBlockDuration.Seconds(),
-	// )
 
-	// Finaliza o bloqueio quando exceder tolerância ou duração máxima
 	if c.BlockSpentStamina > c.BlockStaminaTolerance || c.BlockDuration >= c.MaxBlockDuration {
 		c.SetBlocking(false)
 		c.ParryWindowStart = time.Time{}
@@ -408,6 +420,7 @@ func (c *Creature) PerformBlock(deltaTime float64) {
 		c.BlockDuration = 0
 		c.MaxBlockDuration = 0
 		c.BlockSpentStamina = 0
+
 		log.Printf("[BLOCK] [%s] soltou o bloqueio — motivo: %s",
 			c.Handle.String(),
 			func() string {
@@ -420,88 +433,85 @@ func (c *Creature) PerformBlock(deltaTime float64) {
 	}
 }
 
-func (c *Creature) TryDodgeReaction(e model.CombatEvent, svcCtx *dynamic_context.AIServiceContext) {
-	// ⛔ Condições que impedem a reação
+func (c *Creature) TryDodgeReaction(e model.CombatEvent) bool {
 	if !c.Alive || c.IsDodging() || c.IsBlocking() {
-		return
+		return false
 	}
-
-	if c.NextSkillToUse != nil && !c.CurrentSkillState().CanBeCancelled() {
-		return
+	state := c.CurrentSkillState()
+	if state != nil && state.InUse && state.Skill != nil && !state.Skill.Interruptible {
+		return false
 	}
-
-	// ⛔ Evento já processado
-	lastEv := c.GetLastDodgeEvent()
-	if lastEv.BehaviorType == "" {
-		return
+	if last := c.GetLastDodgeEvent(); last.BehaviorType != "" {
+		return false
 	}
-
-	// ⛔ Stamina insuficiente
 	if c.Stamina < c.DodgeStaminaCost+5.0 {
 		log.Printf("[DODGE] [%s] recusou esquiva — stamina insuficiente (%.2f)", c.Handle.String(), c.Stamina)
-		return
+		return false
 	}
 
-	// 🧠 Cálculo de chance de esquiva com base na postura
-	baseChance := 0.75
-	switch c.CombatState {
-	case constslib.CombatStateDefensive:
-		baseChance = 1.0
-	case constslib.CombatStateStrategic:
-		baseChance = 0.85
-	case constslib.CombatStateAggressive:
-		baseChance = 0.75
-	}
-
+	drive := c.GetCombatDrive()
 	staminaRatio := c.Stamina / c.MaxStamina
-	finalChance := baseChance * (0.25 + 0.75*staminaRatio)
+	baseChance := 0.75
+	switch {
+	case drive.Caution > 0.6 || drive.Counter > 0.6:
+		baseChance = 1.0
+	case drive.Caution > 0.4 || drive.Counter > 0.4:
+		baseChance = 0.85
+	case drive.Caution > 0.2 || drive.Counter > 0.2:
+		baseChance = 0.75
+	default:
+		baseChance = 0.5
+	}
+	finalChance := baseChance * (0.3 + 0.7*staminaRatio)
 	if rand.Float64() >= finalChance {
-		log.Printf("[DODGE] [%s] não esquivou — chance final %.2f (stamina ratio: %.2f)", c.Handle.String(), finalChance, staminaRatio)
-		return
+		log.Printf("[DODGE] [%s] falhou — finalChance %.2f | Caution=%.2f | Counter=%.2f | StaminaRatio=%.2f",
+			c.Handle.String(), finalChance, drive.Caution, drive.Counter, staminaRatio)
+		c.ConsumeCombatEvent(e)
+		return false
 	}
 
-	// ⏱️ Janela de windup válida
-	start := e.Timestamp
-	end := e.ExpectedImpact
 	now := time.Now()
-	if now.Before(start) || now.After(end) {
-		return
-	}
-
-	// 🎯 Cálculo da posição da esquiva (perpendicular ao alvo)
-	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
+	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, c.GetContext())
 	if target == nil {
-		return
+		return false
 	}
 
 	dirVec := target.GetPosition().Sub2D(c.Position).Normalize()
 	perp := position.RotateVector2D(dirVec, math.Pi/2).Normalize()
 	back := dirVec.Multiply(-1).Normalize()
 
-	candidates := []position.Vector2D{
-		perp.Multiply(c.DodgeDistance),
-		perp.Multiply(-c.DodgeDistance),
-		back.Multiply(c.DodgeDistance),
+	applyJitter := func(v position.Vector2D) position.Vector2D {
+		angle := (rand.Float64() - 0.5) * 0.3
+		return position.RotateVector2D(v, angle).Normalize().Multiply(c.DodgeDistance)
 	}
 
-	var chosen position.Position
-	found := false
+	candidateOffsets := []position.Vector2D{
+		applyJitter(perp),
+		applyJitter(perp.Multiply(-1)),
+		applyJitter(back),
+	}
 
-	for _, offset := range candidates {
+	rand.Shuffle(len(candidateOffsets), func(i, j int) {
+		candidateOffsets[i], candidateOffsets[j] = candidateOffsets[j], candidateOffsets[i]
+	})
+
+	var chosen position.Position
+	var chosenVec position.Vector2D
+	found := false
+	for _, offset := range candidateOffsets {
 		newPos := c.Position.AddVector3D(position.Vector3D{X: offset.X, Y: 0, Z: offset.Z})
-		if svcCtx.NavMesh.IsWalkable(newPos) {
+		if c.GetContext().NavMesh.IsWalkable(newPos) && c.GetContext().ClaimPosition(newPos, c.Handle) {
 			chosen = newPos
+			chosenVec = offset.Normalize()
 			found = true
 			break
 		}
 	}
-
 	if !found {
-		log.Printf("[DODGE] [%s] esquiva negada — nenhum dos destinos era andável", c.Handle.String())
-		return
+		log.Printf("[DODGE] [%s] negado — sem destino andável", c.Handle.String())
+		return false
 	}
 
-	// ✅ Ativar impulso de esquiva (dash lateral)
 	c.MoveCtrl.ImpulseState = &movement.ImpulseMovementState{
 		Active:   true,
 		Start:    now,
@@ -509,54 +519,56 @@ func (c *Creature) TryDodgeReaction(e model.CombatEvent, svcCtx *dynamic_context
 		StartPos: c.Position,
 		EndPos:   chosen,
 	}
-
-	// ✅ Ativar estado de esquiva
 	c.SetDodging(true)
 	c.SetBlocking(false)
 	c.invulnerableUntil = now.Add(c.DodgeInvulnerabilityDuration)
 	c.DodgeStartedAt = now
 	c.SetCachedDodgePosition(chosen)
+	c.LastDodgeDirection = chosenVec
 	c.ReduceStamina(c.DodgeStaminaCost)
 	c.SetLastDodgeEvent(e)
-
 	c.ConsumeCombatEvent(e)
-	log.Printf("[REACT] [%s] iniciou esquiva (impulso) para (%.2f, %.2f) contra %s — stamina: %.2f",
+
+	log.Printf("[REACT] [%s] esquiva iniciada para (%.2f, %.2f) contra %s — stamina: %.2f",
 		c.Handle.String(), chosen.X, chosen.Z, e.SourceHandle.ID, c.Stamina)
+
+	return true
 }
 
-func (c *Creature) PerformDodge(svcCtx *dynamic_context.AIServiceContext) {
+func (c *Creature) PerformDodge() {
 	if !c.IsDodging() {
 		return
 	}
-
-	// lastEvent := c.GetLastDodgeEvent()
-	// if lastEvent.BehaviorType == "" {
-	// 	// log.Printf("[DODGE] [%s] ignorada — evento consumido ou inválido", c.Handle.String())
-	// 	return
-	// }
 
 	if time.Now().Before(c.DodgeDisabledUntil) {
 		log.Printf("[DODGE] [%s] exausto, não pode esquivar ainda", c.Handle.String())
 		return
 	}
 
-	newPos := c.GetCachedDodgePosition()
-	if !svcCtx.NavMesh.IsWalkable(newPos) {
-		log.Printf("[DODGE] [%s] falhou — destino não andável (%.2f, %.2f)", c.Handle.String(), newPos.X, newPos.Z)
-		return
+	if c.MoveCtrl.ImpulseState != nil {
+		newPos := c.GetCachedDodgePosition()
+		if c.GetContext().NavMesh.IsWalkable(newPos) {
+			log.Printf("[DODGE] [%s] esquiva realizada para (%.2f, %.2f)", c.Handle.String(), newPos.X, newPos.Z)
+			c.GetContext().ClearClaims(c.Handle)
+		} else {
+			log.Printf("[DODGE] [%s] falhou — destino não andável (%.2f, %.2f)", c.Handle.String(), newPos.X, newPos.Z)
+			return
+		}
 	}
 
-	// Penalidade pós-esquiva
 	if c.Stamina <= 0 {
 		c.DodgeDisabledUntil = time.Now().Add(2 * time.Second)
 		c.RunSpeed *= 0.5
 		log.Printf("[DODGE] [%s] exausto — esquiva desativada e velocidade reduzida", c.Handle.String())
 	}
 
-	log.Printf("[DODGE] [%s] esquiva realizada para (%.2f, %.2f)", c.Handle.String(), newPos.X, newPos.Z)
-
-	// Limpa evento após consumo
-	c.SetLastDodgeEvent(model.CombatEvent{})
+	if time.Since(c.DodgeStartedAt) > c.DodgeInvulnerabilityDuration {
+		c.SetDodging(false)
+		c.invulnerableUntil = time.Time{}
+		c.SetLastDodgeEvent(model.CombatEvent{})
+		c.GetContext().ClearClaims(c.Handle)
+		log.Printf("[DODGE] [%s] fim da invulnerabilidade", c.Handle.String())
+	}
 }
 
 func (c *Creature) CancelCurrentSkill() {
@@ -953,10 +965,6 @@ func (c *Creature) TakeDamage(amount int) {
 	} else {
 		c.CombatState = constslib.CombatStateRecovering
 	}
-}
-
-func (c *Creature) GetFacingDirection() position.Vector2D {
-	return c.FacingDirection
 }
 
 // creature/creature.go
@@ -1358,25 +1366,42 @@ func (c *Creature) GetMovementLockUntil() time.Time {
 	return c.movementLockedUntil
 }
 
-// No arquivo creature/creature.go (ou similar)
-func (c *Creature) FaceTarget(ctx *dynamic_context.AIServiceContext) {
+func (c *Creature) UpdateFacingDirection(ctx *dynamic_context.AIServiceContext) {
+	// 1. Se está se movendo (usa MoveCtrl e Velocity), orienta na direção da velocidade
+	if c.MoveCtrl != nil && c.MoveCtrl.IsMoving {
+		dir := c.MoveCtrl.Velocity.ToVector2D().Normalize()
+		if dir.X != 0 || dir.Z != 0 {
+			c.facingDirection = dir
+			return
+		}
+	}
+
+	// 2. Se tem um alvo válido, tenta encontrar e mirar
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, ctx)
-	if target == nil {
-		return
+	if target != nil {
+		toTarget := position.NewVector2DFromTo(c.Position, target.GetPosition())
+		if toTarget.X != 0 || toTarget.Z != 0 {
+			c.facingDirection = toTarget
+			return
+		}
 	}
 
-	dir := position.NewVector2DFromTo(c.Position, target.GetPosition()).Normalize()
-
-	currentDir := c.GetFacingDirection()
-	angleDiff := math.Acos(currentDir.Dot(dir))
-
-	rotationSpeed := 0.25
-	if angleDiff < rotationSpeed {
-		c.SetFacingDirection(dir)
-	} else {
-		newDir := position.LerpVector2D(currentDir, dir, rotationSpeed/angleDiff).Normalize()
-		c.SetFacingDirection(newDir)
+	// 3. Caso ainda esteja zerado (no início, por exemplo), seta um default
+	if c.GetFacingDirection().X == 0 && c.GetFacingDirection().Z == 0 {
+		c.facingDirection = position.Vector2D{X: 0, Z: 1}
 	}
+}
+
+func (c *Creature) UpdateTorsoDirection() {
+	if c.MoveCtrl != nil && c.MoveCtrl.IsMoving {
+		dir := c.MoveCtrl.Velocity.ToVector2D().Normalize()
+		if dir.Length() > 0.01 {
+			c.SetTorsoDirection(dir)
+			return
+		}
+	}
+
+	// Se não estiver se movendo, mantém o último valor
 }
 
 func (c *Creature) ConsumeCombatEvent(target model.CombatEvent) {
@@ -1446,10 +1471,10 @@ func (c *Creature) ProcessCombatFeedback() {
 			drive.Counter += 0.2
 
 		case constslib.CombatActionCircleAround:
-			drive.Rage += 0.08
-			drive.Caution -= 0.01
-			drive.Termination += 0.02
-			drive.Counter += 0.05
+			drive.Rage += 0.005
+			drive.Caution -= 0.005
+			drive.Termination += 0.01
+			drive.Counter += 0.005
 
 		case constslib.CombatActionApproach:
 			drive.Rage += 0.02
@@ -1494,10 +1519,17 @@ func (c *Creature) ProcessCombatFeedback() {
 			drive.Counter = 0.0
 
 		case constslib.CombatActionTookDamage:
-			drive.Rage += 0.3
-			drive.Caution -= 0.04
-			drive.Termination += 0.05
-			drive.Counter += 0.2
+			drive.Rage += 0.07
+			drive.Caution += 0.12
+			drive.Termination += 0.01
+			drive.Counter += 0.24
+
+		case constslib.CombatActionHesitatedAttack:
+			drive.Caution += 0.12
+			drive.Rage -= 0.04
+			drive.Termination -= 0.01
+			drive.Counter -= 0.04
+
 		}
 	}
 
@@ -1514,17 +1546,17 @@ func (c *Creature) ProcessCombatFeedback() {
 	drive.Counter = math.Max(0, math.Min(1, drive.Counter))
 
 	// Log visual
-	color.New(color.FgHiMagenta, color.Bold).Printf(
-		"[COMBAT-FEEDBACK] [%s] drive atualizado: Rage=%.2f | Caution=%.2f | Termination=%.2f | Counter=%.2f\n",
-		c.PrimaryType, drive.Rage, drive.Caution, drive.Termination, drive.Counter,
-	)
+	// color.New(color.FgHiMagenta, color.Bold).Printf(
+	// 	"[COMBAT-FEEDBACK] [%s] drive atualizado: Rage=%.2f | Caution=%.2f | Termination=%.2f | Counter=%.2f\n",
+	// 	c.PrimaryType, drive.Rage, drive.Caution, drive.Termination, drive.Counter,
+	// )
 
 	// Limpa ações
 	c.RecentActions = nil
 }
 
 func (c *Creature) GetYaw() float64 {
-	dir := c.FacingDirection // position.Vector2D
+	dir := c.GetFacingDirection() // position.Vector2D
 
 	if dir.X == 0 && dir.Z == 0 {
 		return 0 // parado, usa default
@@ -1535,4 +1567,41 @@ func (c *Creature) GetYaw() float64 {
 		angle += 360
 	}
 	return angle
+}
+
+func (c *Creature) SetLastMissedSkillAt(t time.Time) {
+	c.lastMissedSkillAt = t
+}
+
+func (c *Creature) HasRecentlyMissedSkill() bool {
+	return time.Since(c.lastMissedSkillAt) < 2*time.Second
+}
+
+func (c *Creature) CanCircleAgain(cooldown time.Duration) bool {
+	return time.Since(c.lastCircleAt) >= cooldown
+}
+
+func (c *Creature) GetLastSkillMissedAt() time.Time {
+	return c.lastMissedSkillAt
+}
+
+func (c *Creature) GetLastCircleAt() time.Time {
+	return c.lastCircleAt
+}
+
+func (c *Creature) SetLastCircleAt(t time.Time) {
+	c.lastCircleAt = t
+}
+
+func (c *Creature) SetContext(ctx *dynamic_context.AIServiceContext) {
+	c.context = ctx
+}
+
+func (c *Creature) GetContext() *dynamic_context.AIServiceContext {
+	return c.context
+}
+
+func (c *Creature) IsInTacticalMovement() bool {
+	return c.MoveCtrl.MovementPlan != nil &&
+		c.MoveCtrl.MovementPlan.Type == constslib.MovementPlanCircle
 }

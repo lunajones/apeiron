@@ -7,11 +7,12 @@
 package grpc
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -35,7 +36,8 @@ type CreatureSnapshot struct {
 	Animation     string                 `protobuf:"bytes,9,opt,name=animation,proto3" json:"animation,omitempty"`
 	State         string                 `protobuf:"bytes,10,opt,name=state,proto3" json:"state,omitempty"`
 	Timestamp     int64                  `protobuf:"varint,11,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Yaw           float32                `protobuf:"fixed32,12,opt,name=yaw,proto3" json:"yaw,omitempty"` // 👈 ADICIONADO AQUI
+	FaceYaw       float32                `protobuf:"fixed32,12,opt,name=face_yaw,json=faceYaw,proto3" json:"face_yaw,omitempty"` // 👈 ADICIONADO AQUI
+	TorsoYaw      float32                `protobuf:"fixed32,13,opt,name=torso_yaw,json=torsoYaw,proto3" json:"torso_yaw,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,9 +149,16 @@ func (x *CreatureSnapshot) GetTimestamp() int64 {
 	return 0
 }
 
-func (x *CreatureSnapshot) GetYaw() float32 {
+func (x *CreatureSnapshot) GetFaceYaw() float32 {
 	if x != nil {
-		return x.Yaw
+		return x.FaceYaw
+	}
+	return 0
+}
+
+func (x *CreatureSnapshot) GetTorsoYaw() float32 {
+	if x != nil {
+		return x.TorsoYaw
 	}
 	return 0
 }
@@ -249,7 +258,7 @@ var File_service_grpc_creature_proto protoreflect.FileDescriptor
 
 const file_service_grpc_creature_proto_rawDesc = "" +
 	"\n" +
-	"\x1bservice/grpc/creature.proto\x12\x04grpc\"\xff\x01\n" +
+	"\x1bservice/grpc/creature.proto\x12\x04grpc\"\xa5\x02\n" +
 	"\x10CreatureSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -262,8 +271,9 @@ const file_service_grpc_creature_proto_rawDesc = "" +
 	"\tanimation\x18\t \x01(\tR\tanimation\x12\x14\n" +
 	"\x05state\x18\n" +
 	" \x01(\tR\x05state\x12\x1c\n" +
-	"\ttimestamp\x18\v \x01(\x03R\ttimestamp\x12\x10\n" +
-	"\x03yaw\x18\f \x01(\x02R\x03yaw\"+\n" +
+	"\ttimestamp\x18\v \x01(\x03R\ttimestamp\x12\x19\n" +
+	"\bface_yaw\x18\f \x01(\x02R\afaceYaw\x12\x1b\n" +
+	"\ttorso_yaw\x18\r \x01(\x02R\btorsoYaw\"+\n" +
 	"\x15SnapshotStreamRequest\x12\x12\n" +
 	"\x04zone\x18\x01 \x01(\tR\x04zone\"M\n" +
 	"\x15CreatureSnapshotBatch\x124\n" +

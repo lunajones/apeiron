@@ -21,6 +21,7 @@ type Zone struct {
 	Creatures    []*creature.Creature
 	NavMesh      *navmesh.NavMesh
 	SpatialIndex navmesh.SpatialIndex
+	svcCtx       *dynamic_context.AIServiceContext
 }
 
 var Zones []*Zone
@@ -28,18 +29,20 @@ var Players []*player.Player
 var creatureCounter int
 
 func Init() {
-	zone := &Zone{ID: "old_china"}
+	zone := &Zone{
+		ID:           "old_china",
+		SpatialIndex: navmesh.NewSimpleSpatialIndex(),
+	}
 
 	if err := zone.LoadNavMesh(); err != nil {
 		log.Printf("[ZONE] erro ao carregar NavMesh da zona %s: %v", zone.ID, err)
 	}
 
-	zone.SpatialIndex = navmesh.NewSimpleSpatialIndex()
+	zone.svcCtx = dynamic_context.NewAIServiceContext(zone.NavMesh, zone.SpatialIndex)
 
-	if err := zone.LoadStaticSpawns(); err != nil {
+	if err := zone.LoadStaticSpawns(zone.svcCtx); err != nil {
 		log.Printf("[ZONE] erro ao carregar spawns da zona %s: %v", zone.ID, err)
 	}
-
 	Zones = append(Zones, zone)
 }
 
@@ -55,9 +58,6 @@ func (z *Zone) LoadNavMesh() error {
 }
 
 func (z *Zone) Tick(elapsed float64) {
-	// Cria o contexto uma vez só
-	svcCtx := dynamic_context.NewAIServiceContext(z.NavMesh, z.SpatialIndex)
-
 	for _, c := range z.Creatures {
 		if !c.Alive {
 			z.processRespawn(c)
@@ -71,8 +71,8 @@ func (z *Zone) Tick(elapsed float64) {
 		}
 
 		// Atualiza os alvos visíveis no contexto antes de usar
-		svcCtx.CacheFor(c.Handle, c.Position, c.DetectionRadius)
-		c.Tick(svcCtx, elapsed)
+		z.svcCtx.CacheFor(c.Handle, c.Position, c.DetectionRadius)
+		c.Tick(z.svcCtx, elapsed)
 		// Visualização do grid (ativar somente em debug ou condição específica)
 
 	}
@@ -99,7 +99,7 @@ func generateUniqueCreatureID() string {
 	return fmt.Sprintf("creature_%d", creatureCounter)
 }
 
-func (z *Zone) LoadStaticSpawns() error {
+func (z *Zone) LoadStaticSpawns(ctx *dynamic_context.AIServiceContext) error {
 	filePath := filepath.Join("data", "zone", z.ID, "spawns.json")
 
 	spawnDefs, err := spawn.LoadSpawnsForZone(filePath)
@@ -134,7 +134,7 @@ func (z *Zone) LoadStaticSpawns() error {
 				continue
 			}
 
-			newCreature := libcreature.CreateFromTemplate(def.TemplateID, def.Position, def.Radius)
+			newCreature := libcreature.CreateFromTemplate(def.TemplateID, def.Position, def.Radius, ctx)
 			if newCreature == nil {
 				log.Printf("[ZONE] falha ao criar criatura (templateID %d)", def.TemplateID)
 				continue

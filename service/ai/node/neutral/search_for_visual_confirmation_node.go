@@ -17,10 +17,10 @@ type SearchForVisualConfirmationNode struct{}
 func (n *SearchForVisualConfirmationNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 
-	if c.IsMovementLocked() {
-		log.Printf("[CHASE-IN-RANGE] [%s] movimento travado até %v", c.Handle.String(), c.GetMovementLockUntil())
-		return core.StatusRunning
-	}
+	// if c.IsMovementLocked() {
+	// 	log.Printf("[CHASE-IN-RANGE] [%s] movimento travado até %v", c.Handle.String(), c.GetMovementLockUntil())
+	// 	return core.StatusRunning
+	// }
 
 	if !ok {
 		log.Printf("[VISUAL-CONFIRM] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)

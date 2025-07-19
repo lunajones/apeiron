@@ -1,6 +1,7 @@
 package position
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 )
@@ -117,4 +118,20 @@ func (p Position) LerpTo(dest Position, t float64) Position {
 		Y: p.Y + (dest.Y-p.Y)*t,
 		Z: p.Z + (dest.Z-p.Z)*t,
 	}
+}
+
+func (p Position) Key() string {
+	gridX := int(math.Floor(p.X))
+	gridZ := int(math.Floor(p.Z))
+	return fmt.Sprintf("%d:%d", gridX, gridZ)
+}
+
+func CalculateDirection2D(start, end Position) Vector2D {
+	dx := end.X - start.X
+	dz := end.Z - start.Z
+	length := math.Sqrt(dx*dx + dz*dz)
+	if length == 0 {
+		return Vector2D{X: 0, Z: 0}
+	}
+	return Vector2D{X: dx / length, Z: dz / length}
 }

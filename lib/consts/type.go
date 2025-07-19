@@ -100,6 +100,7 @@ const (
 	CombatActionSkillInterrupted CombatAction = "SkillInterrupted"
 	CombatActionCounter          CombatAction = "Counter"
 	CombatActionTookDamage       CombatAction = "TookDamage"
+	CombatActionHesitatedAttack  CombatAction = "HesitatedAttack"
 )
 
 type MovementPlanType string

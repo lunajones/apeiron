@@ -20,47 +20,33 @@ type MicroRetreatNode struct {
 }
 
 func (n *MicroRetreatNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-
-	plan := c.MoveCtrl.MovementPlan
-	if plan != nil {
-		if plan.Type == constslib.MovementPlanMicroRetreat {
-			if time.Now().Before(plan.ExpiresAt) {
-				color.Yellow("[MICRO-RETREAT] [%s] plano de movimento MICRO-RETREAT ativo, ignorando novo plano", c.Handle.String())
-				return core.StatusRunning
-			} else {
-				color.HiRed("[MICRO-RETREAT] [%s] plano MICRO-RETREAT expirou, limpando movimento", c.Handle.String())
-				c.ClearMovementIntent()
-				c.SetAnimationState(constslib.AnimationIdle)
-				c.MoveCtrl.MovementPlan = nil
-			}
-		}
-	}
-	if c.IsDodging() || c.CombatState != constslib.CombatStateMoving {
-		return core.StatusFailure
-	}
-
-	drive := c.GetCombatDrive()
-	if drive.Caution < 0.9 {
-		log.Printf("[MICRO-RETREAT] [%s] Caution insuficiente (%.2f), recuo ignorado", c.Handle.String(), drive.Caution)
-		return core.StatusFailure
-	}
-
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
 		log.Printf("[MICRO-RETREAT] [%s] contexto inválido.", c.Handle.String())
 		return core.StatusFailure
 	}
 
-	if c.IsMovementLocked() {
-		return core.StatusRunning
-	}
-
-	// Validação de plano já existente
-	if plan := c.MoveCtrl.MovementPlan; plan != nil {
-		if plan.Type == constslib.MovementPlanMicroRetreat && time.Now().Before(plan.ExpiresAt) {
-			log.Printf("[MICRO-RETREAT] [%s] plano de recuo ativo, ignorando novo plano", c.Handle.String())
+	plan := c.MoveCtrl.MovementPlan
+	if plan != nil && plan.Type == constslib.MovementPlanMicroRetreat {
+		if time.Now().Before(plan.ExpiresAt) {
+			color.Yellow("[MICRO-RETREAT] [%s] plano de movimento MICRO-RETREAT ativo, ignorando novo plano", c.Handle.String())
 			return core.StatusRunning
 		}
+		color.HiRed("[MICRO-RETREAT] [%s] plano MICRO-RETREAT expirou, limpando movimento", c.Handle.String())
+		c.ClearMovementIntent()
+		c.SetAnimationState(constslib.AnimationIdle)
+		c.MoveCtrl.MovementPlan = nil
+		svcCtx.ClearClaims(c.Handle)
+	}
+
+	if c.IsDodging() || c.CombatState != constslib.CombatStateMoving {
+		return core.StatusFailure
+	}
+
+	drive := c.GetCombatDrive()
+	if drive.Caution < 0.8 {
+		log.Printf("[MICRO-RETREAT] [%s] Caution insuficiente (%.2f), recuo ignorado", c.Handle.String(), drive.Caution)
+		return core.StatusFailure
 	}
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
@@ -79,7 +65,7 @@ func (n *MicroRetreatNode) Tick(c *creature.Creature, ctx interface{}) interface
 		return core.StatusFailure
 	}
 
-	// Decide o tipo de recuo
+	// Decide direção de recuo
 	mode := rand.Intn(2)
 	forward := position.NewVector2DFromTo(target.GetPosition(), c.GetPosition()).Normalize()
 	var retreatDir position.Vector2D
@@ -95,22 +81,32 @@ func (n *MicroRetreatNode) Tick(c *creature.Creature, ctx interface{}) interface
 		retreatDir = forward.Scale(0.3).Add(lateral.Scale(0.3 * side))
 	}
 
-	destination := c.GetPosition().AddVector2D(retreatDir)
-
-	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 {
-		c.MoveCtrl.SetMoveIntent(destination, c.WalkSpeed*0.7, 0.1)
-		c.SetAnimationState(constslib.AnimationWalk)
-		c.SetMovementLock(1 * time.Second)
-
-		c.MoveCtrl.MovementPlan = &movement.MovementPlan{
-			Type:            constslib.MovementPlanMicroRetreat,
-			TargetHandle:    target.GetHandle(),
-			DesiredDistance: 2.0,
-			ExpiresAt:       time.Now().Add(1 * time.Second),
-		}
+	dest := c.GetPosition().AddVector2D(retreatDir)
+	if !svcCtx.NavMesh.IsWalkable(dest) || svcCtx.IsClaimedByOther(dest, c.Handle) {
+		color.HiRed("[MICRO-RETREAT] [%s] posição bloqueada (walkable=%v, claimed)", c.Handle.String(), svcCtx.NavMesh.IsWalkable(dest))
+		return core.StatusFailure
 	}
 
-	log.Printf("[MICRO-RETREAT] [%s] recuando (modo=%d, dist=%.2f)", c.Handle.String(), mode, dist)
+	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 {
+		svcCtx.ClearClaims(c.Handle)
+		if !svcCtx.ClaimPosition(dest, c.Handle) {
+			color.Red("[MICRO-RETREAT] [%s] falha ao claimar célula de destino", c.Handle.String())
+			return core.StatusFailure
+		}
+
+		c.MoveCtrl.SetMoveTarget(dest, c.WalkSpeed*0.7, 0.1)
+		c.SetAnimationState(constslib.AnimationWalk)
+
+		c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
+			constslib.MovementPlanMicroRetreat,
+			target.GetHandle(),
+			2.0,
+			1*time.Second,
+			target.GetPosition(),
+		)
+
+		log.Printf("[MICRO-RETREAT] [%s] recuando (modo=%d, dist=%.2f)", c.Handle.String(), mode, dist)
+	}
 
 	return core.StatusRunning
 }
@@ -119,5 +115,11 @@ func (n *MicroRetreatNode) Reset(c *creature.Creature) {
 	c.ClearMovementIntent()
 	c.SetAnimationState(constslib.AnimationIdle)
 	c.MoveCtrl.MovementPlan = nil
+
+	svcCtx := c.GetContext()
+	if svcCtx != nil {
+		svcCtx.ClearClaims(c.Handle)
+	}
+
 	log.Printf("[MICRO-RETREAT] [RESET] [%s (%s)]", c.Handle.String(), c.PrimaryType)
 }

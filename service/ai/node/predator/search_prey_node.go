@@ -37,7 +37,7 @@ func (n *SearchPreyNode) Tick(c *creature.Creature, ctx interface{}) interface{}
 		return core.StatusSuccess
 	}
 
-	log.Printf("[SEARCH-PREY] [%s (%s)] nenhuma prey encontrada", c.Handle.String(), c.PrimaryType)
+	// log.Printf("[SEARCH-PREY] [%s (%s)] nenhuma prey encontrada", c.Handle.String(), c.PrimaryType)
 	return core.StatusFailure
 }
 

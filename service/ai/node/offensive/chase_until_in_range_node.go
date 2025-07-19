@@ -1,7 +1,7 @@
 package offensive
 
 import (
-	"log"
+	"math/rand"
 	"time"
 
 	"github.com/fatih/color"
@@ -17,94 +17,104 @@ import (
 type ChaseUntilInRangeNode struct{}
 
 func (n *ChaseUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
-	// ⚠️ VALIDAÇÃO DO PLANO DE MOVIMENTO ATUAL
-	plan := c.MoveCtrl.MovementPlan
-	if plan != nil {
-		if plan.Type == constslib.MovementPlanChase {
-			if time.Now().Before(plan.ExpiresAt) {
-				color.Yellow("[CHASE-IN-RANGE] [%s] plano de movimento CHASE ativo, ignorando novo plano", c.Handle.String())
-				return core.StatusRunning
-			} else {
-				color.HiRed("[CHASE-IN-RANGE] [%s] plano CHASE expirou, limpando movimento", c.Handle.String())
-				c.ClearMovementIntent()
-				c.SetAnimationState(constslib.AnimationIdle)
-				c.MoveCtrl.MovementPlan = nil
-			}
-		}
-	}
-
 	drive := c.GetCombatDrive()
-	// color.Cyan("[CHASE-IN-RANGE] [%s] PERSEGUINDO (%.2f)", c.GetPrimaryType(), drive.Caution)
 
 	if c.IsDodging() || c.CombatState != constslib.CombatStateMoving {
-		// color.HiRed("[CHASE-IN-RANGE] [%s] FALHOU EM PERSEGUIR (%.2f)", c.GetPrimaryType(), drive.Caution)
 		return core.StatusFailure
 	}
 
 	if drive.Caution >= 0.4 {
-		color.Yellow("[CHASE-IN-RANGE] [%s] Caution insuficiente (%.2f), ignorando perseguição", c.Handle.String(), drive.Caution)
+		color.Yellow("[CHASE-IN-RANGE] [%s] Caution insuficiente (%.2f), ignorando perseguição", c.GetPrimaryType(), drive.Caution)
 		return core.StatusFailure
 	}
 
 	if c.NextSkillToUse == nil {
-		color.HiMagenta("[CHASE-IN-RANGE] [%s (%s)] Sem skill planejada", c.Handle.String(), c.PrimaryType)
+		color.HiMagenta("[CHASE-IN-RANGE] [%s] Sem skill planejada", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
-		color.HiRed("[CHASE-IN-RANGE] [%s (%s)] contexto inválido", c.Handle.String(), c.PrimaryType)
+		color.HiRed("[CHASE-IN-RANGE] [%s] contexto inválido", c.GetPrimaryType())
 		return core.StatusFailure
-	}
-
-	if c.IsMovementLocked() {
-		color.Blue("[CHASE-IN-RANGE] [%s] movimento travado até %v", c.Handle.String(), c.GetMovementLockUntil())
-		return core.StatusRunning
 	}
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
 	if target == nil {
-		color.HiRed("[CHASE-IN-RANGE] [%s (%s)] alvo não encontrado", c.Handle.String(), c.PrimaryType)
+		color.HiRed("[CHASE-IN-RANGE] [%s] alvo não encontrado", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
 	rangeNeeded := c.NextSkillToUse.Range
-	log.Println(color.WhiteString("[CHASE-IN-RANGE] [%s] distância até alvo: %.2f (range da skill: %.2f)", c.Handle.String(), dist, rangeNeeded))
+
+	color.White("[CHASE-IN-RANGE] [%s] distância até alvo: %.2f (range da skill: %.2f)", c.GetPrimaryType(), dist, rangeNeeded)
 
 	c.RecentActions = append(c.RecentActions, constslib.CombatActionChase)
 
 	if dist <= rangeNeeded {
-		color.Green("[CHASE-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.Handle.String(), c.NextSkillToUse.Name, dist)
+		color.Green("[CHASE-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.GetPrimaryType(), c.NextSkillToUse.Name, dist)
 		c.ClearMovementIntent()
 		c.SetAnimationState(constslib.AnimationIdle)
 		c.MoveCtrl.MovementPlan = nil
 		return core.StatusSuccess
 	}
-	log.Println(color.WhiteString("[CHASE-IN-RANGE] [%s] distância até alvo: %.2f, is moving %s", c.GetPrimaryType(), dist, rangeNeeded, c.MoveCtrl.IsMoving))
 
-	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 || (c.MoveCtrl.MovementPlan != nil && time.Now().After(c.MoveCtrl.MovementPlan.ExpiresAt)) {
+	plan := c.MoveCtrl.MovementPlan
+	if plan != nil && plan.Type == constslib.MovementPlanChase {
+		const minRecalcDist = 1.0
+		lastPos := plan.LastTargetPosition
+		currentPos := target.GetPosition()
+		moved := position.CalculateDistance(lastPos, currentPos)
 
-		color.HiCyan("[CHASE-IN-RANGE] [%s] iniciando perseguição (dist=%.2f, range=%.2f)", c.Handle.String(), dist, rangeNeeded)
-		c.MoveCtrl.SetMoveIntent(target.GetPosition(), c.RunSpeed, rangeNeeded)
-		c.SetMovementLock(5 * time.Second)
-
-		c.MoveCtrl.MovementPlan = &movement.MovementPlan{
-			Type:            constslib.MovementPlanChase,
-			TargetHandle:    target.GetHandle(), // <- usa handle do alvo
-			DesiredDistance: rangeNeeded,
-			ExpiresAt:       time.Now().Add(3 * time.Second), // <- calcula vencimento
+		if moved > minRecalcDist {
+			color.Red("[CHASE-IN-RANGE] [%s] alvo se moveu %.2f m, refazendo plano", c.GetPrimaryType(), moved)
+			c.ClearMovementIntent()
+			c.MoveCtrl.MovementPlan = nil
+		} else if time.Now().Before(plan.ExpiresAt) {
+			color.Yellow("[CHASE-IN-RANGE] [%s] plano CHASE ainda válido, mantendo (%.2fs restantes)", c.GetPrimaryType(), time.Until(plan.ExpiresAt).Seconds())
+			return core.StatusRunning
 		}
-
 	}
 
-	color.White("[CHASE-IN-RANGE] [%s] posição atual: %s | destino: %s", c.Handle.String(), c.GetPosition(), c.MoveCtrl.TargetPosition)
-	c.SetAnimationState(constslib.AnimationRun)
+	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 || (c.MoveCtrl.MovementPlan != nil && time.Now().After(c.MoveCtrl.MovementPlan.ExpiresAt)) {
+		color.HiCyan("[CHASE-IN-RANGE] [%s] iniciando perseguição (dist=%.2f, range=%.2f)", c.GetPrimaryType(), dist, rangeNeeded)
+
+		// Claim e fallback lateral
+		baseTargetPos := target.GetPosition()
+		if !svcCtx.ClaimPosition(baseTargetPos, c.Handle) {
+			offset := rand.Float64()*2 - 1
+			forward := position.NewVector2DFromTo(c.GetPosition(), baseTargetPos).Normalize()
+			side := forward.Perpendicular().Scale(offset * 1.5)
+			alt := baseTargetPos.AddVector2D(side)
+
+			if svcCtx.ClaimPosition(alt, c.Handle) {
+				baseTargetPos = alt
+				color.Red("[CHASE-IN-RANGE] [%s] célula ocupada, usando posição lateral %.2f", c.GetPrimaryType(), offset)
+			} else {
+				color.Red("[CHASE-IN-RANGE] [%s] nenhuma posição viável encontrada", c.GetPrimaryType())
+				return core.StatusFailure
+			}
+		}
+
+		c.MoveCtrl.SetMoveTarget(baseTargetPos, c.RunSpeed, rangeNeeded)
+		c.SetAnimationState(constslib.AnimationRun)
+
+		c.MoveCtrl.MovementPlan = &movement.MovementPlan{
+			Type:               constslib.MovementPlanChase,
+			TargetHandle:       target.GetHandle(),
+			DesiredDistance:    rangeNeeded,
+			ExpiresAt:          time.Now().Add(3 * time.Second),
+			LastTargetPosition: target.GetPosition(),
+		}
+	}
+
+	color.White("[CHASE-IN-RANGE] [%s] posição atual: %s | destino: %s", c.GetPrimaryType(), c.GetPosition(), c.MoveCtrl.TargetPosition)
 	return core.StatusRunning
 }
 
 func (n *ChaseUntilInRangeNode) Reset(c *creature.Creature) {
-	color.Yellow("[CHASE-IN-RANGE] [%s] Reset chamado, limpando movimento", c.Handle.String())
+	color.Yellow("[CHASE-IN-RANGE] [%s] Reset chamado, limpando movimento", c.GetPrimaryType())
 	c.ClearMovementIntent()
 	c.SetAnimationState(constslib.AnimationIdle)
 }

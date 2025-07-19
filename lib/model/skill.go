@@ -159,7 +159,11 @@ type SkillResult struct {
 }
 
 func (s *SkillState) CanBeCancelled() bool {
-	if s == nil || s.Skill == nil || !s.InUse || !s.Skill.Interruptible {
+	if s == nil || s.Skill == nil {
+		return true
+	}
+
+	if s.InUse && !s.Skill.Interruptible {
 		return false
 	}
 

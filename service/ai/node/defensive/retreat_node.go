@@ -39,7 +39,7 @@ func (n *RetreatNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	dir := position.NewVector3DFromTo(target.GetPosition(), c.GetPosition()).Normalize()
 	dest := c.GetPosition().AddVector3D(dir.Scale(recoilFactor))
 
-	c.MoveCtrl.SetMoveIntent(dest, c.WalkSpeed*0.5, 0.0)
+	c.MoveCtrl.SetMoveTarget(dest, c.WalkSpeed*0.5, 0.0)
 	c.SetAnimationState(constslib.AnimationWalk)
 
 	log.Printf("[RETREAT] [%s] recuando para %.2f, %.2f, factor=%.2f", c.Handle.String(), dest.X, dest.Z, recoilFactor)
