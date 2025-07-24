@@ -8,6 +8,7 @@ import (
 	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/model"
+	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
 	creatureconsts "github.com/lunajones/apeiron/service/creature/consts"
 	"github.com/lunajones/apeiron/service/npc"
@@ -60,6 +61,9 @@ type Player struct {
 
 	combatDrive model.CombatDrive
 	casting     bool
+
+	combatEvents []model.CombatEvent
+	MoveCtrl     *movement.MovementController
 }
 
 func (p *Player) InitNeeds() {
@@ -243,4 +247,24 @@ func (p *Player) SetCasting(casting bool) {
 
 func (p *Player) GetCombatDrive() *model.CombatDrive {
 	return &p.combatDrive
+}
+
+func (p *Player) GetCombatEvents() []model.CombatEvent {
+	return p.combatEvents
+}
+
+func (p *Player) RegisterCombatEvent(evt model.CombatEvent) {
+	p.combatEvents = append(p.combatEvents, evt)
+}
+
+func (p *Player) ApplyImpulseFrom(from position.Position, duration time.Duration) {
+	dir := position.CalculateDirection2D(from, p.Position)
+	if dir.Length() == 0 {
+		return
+	}
+	dir = dir.Normalize()
+	dist := position.CalculateDistance2D(from, p.Position)
+	dest := from.AddOffset(dir.X*dist, dir.Z*dist)
+
+	p.MoveCtrl.SetImpulseMovement(from, dest, duration)
 }

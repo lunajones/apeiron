@@ -65,3 +65,23 @@ func FindNearbyAllies(ctx *dynamic_context.AIServiceContext, self model.Targetab
 
 	return result
 }
+
+func FindNearbyTargets(ctx *dynamic_context.AIServiceContext, self model.Targetable, maxDist float64) []model.Targetable {
+	var result []model.Targetable
+	candidates := ctx.SpatialIndex.Query(self.GetPosition(), maxDist)
+
+	for _, t := range candidates {
+		if t == nil || t.GetHandle().Equals(self.GetHandle()) {
+			continue
+		}
+		if !t.IsAlive() {
+			continue
+		}
+		dist := position.CalculateDistance(self.GetPosition(), t.GetPosition())
+		if dist <= maxDist {
+			result = append(result, t)
+		}
+	}
+
+	return result
+}

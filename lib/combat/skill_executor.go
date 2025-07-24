@@ -5,11 +5,12 @@ import (
 	"math"
 	"time"
 
-	constslib "github.com/lunajones/apeiron/lib/consts"
+	"github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/model" // adicionado para ApplySkillMovement
 	"github.com/lunajones/apeiron/lib/navmesh"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
+	"github.com/lunajones/apeiron/service/helper/finder"
 )
 
 func UseSkill(
@@ -24,6 +25,7 @@ func UseSkill(
 ) model.SkillResult {
 	result := model.SkillResult{}
 
+	// 🔁 Direciona para o alvo se necessário
 	if !skill.GroundTargeted && target != nil {
 		dir := position.Vector2D{
 			X: target.GetPosition().X - attacker.GetPosition().X,
@@ -32,22 +34,33 @@ func UseSkill(
 		attacker.SetFacingDirection(dir.Normalize())
 	}
 
+	// ⚡ Movimento (Leap, Dash, etc)
 	if skill.Movement != nil {
 		if target != nil {
 			attacker.SetSkillMovementState(ApplySkillMovement(attacker, target, skill))
 		} else {
-			log.Printf("[SkillExecutor] [%s] Skill %s requer target para movimento, mas target é nil", attacker.GetHandle().ID, skill.Name)
+			log.Printf("[SkillExecutor] [%s] Skill %s possui movimento, mas target é nil", attacker.GetHandle().ID, skill.Name)
 		}
-	} else if skill.GroundTargeted && skill.AOE != nil {
-		ApplyAOEDamage(attacker, targetPos, skill, creatures, players, svcCtx)
 		result.Success = true
-	} else if skill.Projectile != nil {
-		SimulateProjectile(attacker, target, targetPos, skill, svcCtx)
-		result.Success = true
-	} else {
-		result = ApplyDirectDamage(attacker, target, skill, svcCtx)
+		return result
 	}
 
+	// 🌀 Área no chão (Ground AOE)
+	if skill.GroundTargeted && skill.AOE != nil {
+		ApplyAOEDamage(attacker, targetPos, skill, creatures, players, svcCtx)
+		result.Success = true
+		return result
+	}
+
+	// 🏹 Projétil
+	if skill.Projectile != nil {
+		SimulateProjectile(attacker, target, targetPos, skill, svcCtx)
+		result.Success = true
+		return result
+	}
+
+	// 🗡️ Dano direto
+	result = ApplyDirectDamage(attacker, target, skill, svcCtx)
 	return result
 }
 
@@ -116,43 +129,140 @@ func UpdateSkillMovement(
 	currentPos := mov.GetPosition()
 	distanceToTargetPos := position.CalculateDistance2D(currentPos, state.TargetPos)
 
-	moveDist := state.Speed * deltaTime // ~60fps tick
+	moveDist := state.Speed * deltaTime
 	if moveDist > distanceToTargetPos {
 		moveDist = distanceToTargetPos
 	}
 	moveVec := state.Direction.Scale(moveDist)
 	newPos := currentPos.AddVector3D(moveVec)
-
 	mov.SetPosition(newPos)
 
-	realDist := position.CalculateDistance2D(newPos, target.GetPosition())
-	log.Printf("[LEAP-REALDIST] Distância real após avanço: %.2f", realDist)
-
-	if !state.DamageApplied && realDist <= state.Config.MaxDistance {
-
-		ApplyDirectDamage(mov, target, state.Skill, svcCtx)
-		state.DamageApplied = true
+	// 💥 Ativa bloqueio frontal se configurado
+	if state.Config.BlockDuringMovement {
+		mov.SetBlocking(true)
 	}
 
-	return state.IsComplete(time.Now(), newPos)
+	// 🔥 HITBOX DURANTE MOVIMENTO
+	if state.Skill.Hitbox != nil {
+		nearby := finder.FindNearbyTargets(svcCtx, mov, state.Config.MaxDistance+1.0)
+		for _, other := range nearby {
+			if other == nil || other.GetHandle().Equals(mov.GetHandle()) {
+				continue
+			}
+			if shouldSkipTarget(mov, other) {
+				continue
+			}
+			if state.HasAlreadyHit(other) {
+				continue
+			}
+			if !isTargetInsideHitbox(mov, other, state.Skill) {
+				continue
+			}
+
+			log.Printf("[MOVE-HIT] [%s] atingiu [%s] durante movimento %s",
+				mov.GetHandle().ID,
+				other.GetHandle().ID,
+				state.Skill.Name,
+			)
+
+			ApplyDirectDamage(mov, other, state.Skill, svcCtx)
+			state.MarkAsHit(other)
+
+			// 💥 Push contínuo: empurrar alvo junto até o fim
+			if state.Config.PushType == consts.MoveToImpact && state.EngagedTarget == nil {
+				state.EngagedTarget = other
+			}
+
+			// 🛑 Stop imediato após primeiro impacto, se configurado
+			if state.Config.StopOnFirstHit && state.EngagedTarget == nil {
+				state.EngagedTarget = other
+				state.StartTime = time.Now().Add(-time.Duration(state.Config.DurationSec * 0.99 * float64(time.Second)))
+				break
+			}
+
+			// ⚙️ Push configurável alternativo
+			if state.Config.PushTargetDuringMovement && state.EngagedTarget == nil {
+				state.EngagedTarget = other
+			}
+		}
+	}
+
+	// 💨 Empurra o alvo engatado continuamente durante o movimento
+	if state.Config.PushTargetDuringMovement && state.EngagedTarget != nil && state.EngagedTarget.IsAlive() {
+		// Ativa empurrão inicial
+		state.EngagedTarget.ApplyImpulseFrom(mov.GetPosition(), 300*time.Millisecond)
+
+		// Corrige sobreposição contínua enquanto se move
+		dist := position.CalculateDistance2D(mov.GetPosition(), state.EngagedTarget.GetPosition())
+		if dist < 0.5 {
+			dir := position.NewVector2DFromTo(mov.GetPosition(), state.EngagedTarget.GetPosition()).Normalize()
+			push := dir.Scale(0.5 - dist)
+			state.EngagedTarget.SetPosition(state.EngagedTarget.GetPosition().AddVector2D(push))
+		}
+	}
+
+	// ✅ Fim do movimento + separação
+	if state.IsComplete(time.Now(), newPos) {
+		if state.Config.SeparationRadius > 0 && state.Config.SeparationForce > 0 {
+			nearby := finder.FindNearbyTargets(svcCtx, mov, state.Config.SeparationRadius)
+			for _, other := range nearby {
+				if other.GetHandle().Equals(mov.GetHandle()) || !other.IsAlive() {
+					continue
+				}
+				dir := position.NewVector2DFromTo(mov.GetPosition(), other.GetPosition()).Normalize()
+				separation := dir.Scale(state.Config.SeparationForce)
+				pushedPos := other.GetPosition().AddVector2D(separation)
+				other.SetPosition(pushedPos)
+
+				log.Printf("[SEPARATION] [%s] empurrou [%s] após fim do movimento %s",
+					mov.GetHandle().ID,
+					other.GetHandle().ID,
+					state.Skill.Name,
+				)
+			}
+		}
+
+		// 🛑 Desativa bloqueio e limpa estado
+		if state.Config.BlockDuringMovement {
+			mov.SetBlocking(false)
+		}
+		state.EngagedTarget = nil
+		return true
+	}
+
+	return false
 }
 
 func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *model.Skill, svcCtx *dynamic_context.AIServiceContext) model.SkillResult {
+	log.Printf("[SKILL] [%s] tentando aplicar %s em [%s]",
+		attacker.GetPrimaryType(),
+		skill.Name,
+		target.GetHandle().ID,
+	)
 	result := model.SkillResult{}
 
 	if target == nil || shouldSkipTarget(attacker, target) {
+		log.Printf("[SKILL] [%s] alvo inválido ou deve ser ignorado", target.GetHandle().ID)
 		attacker.SetLastMissedSkillAt(time.Now())
 		return result
 	}
 
 	if target.IsInvulnerableNow() {
-		log.Printf("[SkillExecutor] [%s] invulnerável no momento, dano evitado de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+		log.Printf("[SKILL] [%s] invulnerável — ataque de [%s] anulado", target.GetHandle().ID, attacker.GetPrimaryType())
 		attacker.SetLastMissedSkillAt(time.Now())
-
 		return result
 	}
 
-	// Atualiza direção do atacante
+	if skill.Hitbox != nil && !isTargetInsideHitbox(attacker, target, skill) {
+		log.Printf("[HITBOX] [%s] fora da hitbox de [%s] para skill %s",
+			target.GetHandle().ID,
+			attacker.GetPrimaryType(),
+			skill.Name,
+		)
+		attacker.SetLastMissedSkillAt(time.Now())
+		return result
+	}
+
 	dir := position.NewVector2DFromTo(attacker.GetPosition(), target.GetPosition())
 	attacker.SetFacingDirection(dir)
 
@@ -165,42 +275,43 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 		dot := blockDir.Dot(attackDir)
 
 		if dot > 0.5 {
-			// PARRY
 			if target.IsInParryWindow() {
-				log.Printf("[PARRY] [%s] executou parry em [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
+				log.Printf("[PARRY] [%s] parry bem-sucedido contra [%s]", target.GetHandle().ID, attacker.GetPrimaryType())
 				attacker.SetLastMissedSkillAt(time.Now())
-				return result // Parry bem-sucedido cancela ataque
+				return result
 			}
 
-			// BLOQUEIO bem-sucedido
-			log.Printf("[BLOCK] [%s] bloqueou ataque de [%s]", target.GetHandle().ID, attacker.GetHandle().ID)
-
+			log.Printf("[BLOCK] [%s] bloqueou ataque de [%s]", target.GetHandle().ID, attacker.GetPrimaryType())
 			if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 				postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
 				target.ApplyPostureDamage(postureDamage * 2)
-				log.Printf("[BLOCK] [%s] aplicou %.1f de posture damage (dobrado)", target.GetHandle().ID, postureDamage*2)
+				log.Printf("[BLOCK] [%s] sofreu %.1f de dano de postura (dobrado)", target.GetHandle().ID, postureDamage*2)
 			}
-
 			attacker.SetLastMissedSkillAt(time.Now())
-
-			return result // Bloqueio nega dano
+			return result
 		} else {
-			log.Printf("[BLOCK-FAILED] [%s] bloqueou em direção errada, ataque passou", target.GetHandle().ID)
+			log.Printf("[BLOCK] [%s] bloqueou em direção errada — ataque de [%s] passou",
+				target.GetHandle().ID, attacker.GetPrimaryType())
 		}
 	}
 
-	// Aplica dano
 	target.TakeDamage(damage)
+
 	result.TargetDied = !target.IsAlive()
 
 	if skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 		postureDamage := skill.Impact.PostureDamage + getPostureScaling(attacker, skill)
 		target.ApplyPostureDamage(postureDamage)
+		log.Printf("[POSTURE] [%s] sofreu %.1f de dano de postura de [%s]",
+			target.GetHandle().ID,
+			postureDamage,
+			attacker.GetPrimaryType(),
+		)
 	}
 
 	if skill.HasDOT && skill.DOT != nil {
 		dotPower := damage / (skill.DOT.DurationSec / skill.DOT.TickSec)
-		effect := constslib.ActiveEffect{
+		effect := consts.ActiveEffect{
 			Type:            skill.DOT.EffectType,
 			StartTime:       time.Now(),
 			Duration:        time.Duration(skill.DOT.DurationSec) * time.Second,
@@ -212,10 +323,70 @@ func ApplyDirectDamage(attacker model.Attacker, target model.Targetable, skill *
 			LastTickElapsed: 0,
 		}
 		target.ApplyEffect(effect)
+		log.Printf("[DOT] [%s] aplicou efeito %s em [%s] por %ds",
+			attacker.GetPrimaryType(),
+			skill.DOT.EffectType,
+			target.GetHandle().ID,
+			skill.DOT.DurationSec,
+		)
 	}
 
 	result.Success = true
 	return result
+}
+
+// Verifica se o alvo está dentro da hitbox da skill
+func isTargetInsideHitbox(attacker model.Attacker, target model.Targetable, skill *model.Skill) bool {
+	if skill.Hitbox == nil {
+		return true
+	}
+
+	shape := skill.Hitbox.Shape
+	attackerPos := attacker.GetPosition().ToVector2D()
+	targetPos := target.GetPosition().ToVector2D()
+
+	switch shape {
+	case model.HitboxBox:
+		return isInsideBox(attackerPos, targetPos, attacker.GetFacingDirection(), skill.Hitbox.Length, skill.Hitbox.Width)
+
+	case model.HitboxCone:
+		dist := position.CalculateDistance(attacker.GetPosition(), target.GetPosition())
+		if dist < skill.Hitbox.MinRadius || dist > skill.Hitbox.MaxRadius {
+			return false
+		}
+		dirToTarget := position.NewVector2DFromTo(attacker.GetPosition(), target.GetPosition())
+		angle := math.Acos(attacker.GetFacingDirection().Normalize().Dot(dirToTarget.Normalize())) * 180 / math.Pi
+		return angle <= (skill.Hitbox.Angle / 2)
+
+	case model.HitboxCircle:
+		dist := position.CalculateDistance(attacker.GetPosition(), target.GetPosition())
+		return dist <= skill.Hitbox.MaxRadius
+
+	case model.HitboxLine:
+		return isInsideLine(attackerPos, targetPos, attacker.GetFacingDirection(), skill.Hitbox.Length, skill.Hitbox.Width)
+
+	default:
+		return false
+	}
+}
+
+// Função auxiliar para box hitbox
+func isInsideBox(origin, point position.Vector2D, facing position.Vector2D, length, width float64) bool {
+	dir := facing.Normalize()
+	rel := point.Sub(origin)
+
+	forward := dir.Dot(rel)
+	if forward < 0 || forward > length {
+		return false
+	}
+
+	side := dir.Perpendicular().Dot(rel)
+	return math.Abs(side) <= width/2
+}
+
+// Função auxiliar para linha tipo Leap
+func isInsideLine(start, point position.Vector2D, facing position.Vector2D, length, width float64) bool {
+	return isInsideBox(start, point, facing, length, width)
 }
 
 func ApplyAOEDamage(attacker model.Attacker, targetPos position.Position, skill *model.Skill, creatures []model.Targetable, players []model.Targetable, svcCtx *dynamic_context.AIServiceContext) {
@@ -441,4 +612,21 @@ func CalculateEffectiveCCDuration(baseDuration float64, target model.Targetable)
 	}
 
 	return finalDuration
+}
+
+func applySeparationOnSkillEnd(attacker model.Attacker, radius float64, force float64, svcCtx *dynamic_context.AIServiceContext) {
+	nearby := finder.FindNearbyTargets(svcCtx, attacker, radius)
+
+	for _, t := range nearby {
+		if t.GetHandle().Equals(attacker.GetHandle()) || !t.IsAlive() {
+			continue
+		}
+
+		dir := position.NewVector2DFromTo(attacker.GetPosition(), t.GetPosition()).Normalize()
+		separation := dir.Scale(force)
+		pushedPos := t.GetPosition().AddVector2D(separation)
+		t.SetPosition(pushedPos)
+
+		log.Printf("[SEPARATION] [%s] empurrou [%s] após movimento", attacker.GetHandle().ID, t.GetHandle().ID)
+	}
 }

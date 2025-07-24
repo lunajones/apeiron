@@ -9,7 +9,6 @@ import (
 	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/helper/finder"
 )
@@ -23,40 +22,33 @@ func (n *ChaseUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) inte
 		return core.StatusFailure
 	}
 
-	if drive.Caution >= 0.4 {
+	if drive.Caution >= 0.2 {
 		color.Yellow("[CHASE-IN-RANGE] [%s] Caution insuficiente (%.2f), ignorando perseguição", c.GetPrimaryType(), drive.Caution)
 		return core.StatusFailure
 	}
 
-	if c.NextSkillToUse == nil {
-		color.HiMagenta("[CHASE-IN-RANGE] [%s] Sem skill planejada", c.GetPrimaryType())
-		return core.StatusFailure
-	}
-
-	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
-	if !ok {
-		color.HiRed("[CHASE-IN-RANGE] [%s] contexto inválido", c.GetPrimaryType())
-		return core.StatusFailure
-	}
-
-	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
+	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, c.GetContext())
 	if target == nil {
 		color.HiRed("[CHASE-IN-RANGE] [%s] alvo não encontrado", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
-	rangeNeeded := c.NextSkillToUse.Range
 
-	color.White("[CHASE-IN-RANGE] [%s] distância até alvo: %.2f (range da skill: %.2f)", c.GetPrimaryType(), dist, rangeNeeded)
+	var rangeNeeded float64
+	if c.NextSkillToUse != nil {
+		rangeNeeded = c.NextSkillToUse.Range
+	} else {
+		rangeNeeded = 1.5
+		color.HiMagenta("[CHASE-IN-RANGE] [%s] Sem skill planejada, usando fallback range %.2f", c.GetPrimaryType(), rangeNeeded)
+	}
 
-	c.RecentActions = append(c.RecentActions, constslib.CombatActionChase)
+	color.White("[CHASE-IN-RANGE] [%s] distância até alvo: %.2f (range considerado: %.2f)", c.GetPrimaryType(), dist, rangeNeeded)
+
+	c.AddRecentAction(constslib.CombatActionChase)
 
 	if dist <= rangeNeeded {
-		color.Green("[CHASE-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.GetPrimaryType(), c.NextSkillToUse.Name, dist)
-		c.ClearMovementIntent()
-		c.SetAnimationState(constslib.AnimationIdle)
-		c.MoveCtrl.MovementPlan = nil
+		color.Green("[CHASE-IN-RANGE] [%s] no range (dist=%.2f)", c.GetPrimaryType(), dist)
 		return core.StatusSuccess
 	}
 
@@ -69,44 +61,39 @@ func (n *ChaseUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) inte
 
 		if moved > minRecalcDist {
 			color.Red("[CHASE-IN-RANGE] [%s] alvo se moveu %.2f m, refazendo plano", c.GetPrimaryType(), moved)
-			c.ClearMovementIntent()
-			c.MoveCtrl.MovementPlan = nil
+			// FSM cuidará do intent, não precisamos limpar aqui
 		} else if time.Now().Before(plan.ExpiresAt) {
 			color.Yellow("[CHASE-IN-RANGE] [%s] plano CHASE ainda válido, mantendo (%.2fs restantes)", c.GetPrimaryType(), time.Until(plan.ExpiresAt).Seconds())
 			return core.StatusRunning
 		}
 	}
 
-	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 || (c.MoveCtrl.MovementPlan != nil && time.Now().After(c.MoveCtrl.MovementPlan.ExpiresAt)) {
-		color.HiCyan("[CHASE-IN-RANGE] [%s] iniciando perseguição (dist=%.2f, range=%.2f)", c.GetPrimaryType(), dist, rangeNeeded)
+	color.HiCyan("[CHASE-IN-RANGE] [%s] iniciando perseguição (dist=%.2f, range=%.2f)", c.GetPrimaryType(), dist, rangeNeeded)
 
-		// Claim e fallback lateral
-		baseTargetPos := target.GetPosition()
-		if !svcCtx.ClaimPosition(baseTargetPos, c.Handle) {
-			offset := rand.Float64()*2 - 1
-			forward := position.NewVector2DFromTo(c.GetPosition(), baseTargetPos).Normalize()
-			side := forward.Perpendicular().Scale(offset * 1.5)
-			alt := baseTargetPos.AddVector2D(side)
+	baseTargetPos := target.GetPosition()
+	if !c.GetContext().ClaimPosition(baseTargetPos, c.Handle) {
+		offset := rand.Float64()*2 - 1
+		forward := position.NewVector2DFromTo(c.GetPosition(), baseTargetPos).Normalize()
+		side := forward.Perpendicular().Scale(offset * 1.5)
+		alt := baseTargetPos.AddVector2D(side)
 
-			if svcCtx.ClaimPosition(alt, c.Handle) {
-				baseTargetPos = alt
-				color.Red("[CHASE-IN-RANGE] [%s] célula ocupada, usando posição lateral %.2f", c.GetPrimaryType(), offset)
-			} else {
-				color.Red("[CHASE-IN-RANGE] [%s] nenhuma posição viável encontrada", c.GetPrimaryType())
-				return core.StatusFailure
-			}
+		if c.GetContext().ClaimPosition(alt, c.Handle) {
+			baseTargetPos = alt
+			color.Red("[CHASE-IN-RANGE] [%s] célula ocupada, usando posição lateral %.2f", c.GetPrimaryType(), offset)
+		} else {
+			color.Red("[CHASE-IN-RANGE] [%s] nenhuma posição viável encontrada", c.GetPrimaryType())
+			return core.StatusFailure
 		}
+	}
 
-		c.MoveCtrl.SetMoveTarget(baseTargetPos, c.RunSpeed, rangeNeeded)
-		c.SetAnimationState(constslib.AnimationRun)
+	c.MoveCtrl.SetMoveTarget(baseTargetPos, c.RunSpeed, rangeNeeded)
 
-		c.MoveCtrl.MovementPlan = &movement.MovementPlan{
-			Type:               constslib.MovementPlanChase,
-			TargetHandle:       target.GetHandle(),
-			DesiredDistance:    rangeNeeded,
-			ExpiresAt:          time.Now().Add(3 * time.Second),
-			LastTargetPosition: target.GetPosition(),
-		}
+	c.MoveCtrl.MovementPlan = &movement.MovementPlan{
+		Type:               constslib.MovementPlanChase,
+		TargetHandle:       target.GetHandle(),
+		DesiredDistance:    rangeNeeded,
+		ExpiresAt:          time.Now().Add(3 * time.Second),
+		LastTargetPosition: target.GetPosition(),
 	}
 
 	color.White("[CHASE-IN-RANGE] [%s] posição atual: %s | destino: %s", c.GetPrimaryType(), c.GetPosition(), c.MoveCtrl.TargetPosition)
@@ -114,7 +101,5 @@ func (n *ChaseUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) inte
 }
 
 func (n *ChaseUntilInRangeNode) Reset(c *creature.Creature) {
-	color.Yellow("[CHASE-IN-RANGE] [%s] Reset chamado, limpando movimento", c.GetPrimaryType())
-	c.ClearMovementIntent()
-	c.SetAnimationState(constslib.AnimationIdle)
+	color.Yellow("[CHASE-IN-RANGE] [%s] Reset chamado", c.GetPrimaryType())
 }

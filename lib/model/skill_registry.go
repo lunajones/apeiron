@@ -11,6 +11,8 @@ var SkillRegistry = map[string]*Skill{}
 func InitSkills() {
 	log.Println("[Skill Registry] initializing skills...")
 
+	// ===== SOLDIER SKILLS =====
+
 	SkillRegistry["SoldierSlash"] = &Skill{
 		ID:                "SoldierSlash",
 		Name:              "SoldierSlash",
@@ -31,6 +33,12 @@ func InitSkills() {
 			DefenseStat:       "ControlResistance",
 		},
 		ScoreBase: 1.0,
+		Hitbox: &HitboxConfig{
+			Shape:     HitboxCone,
+			MinRadius: 0.4,
+			MaxRadius: 2.2,
+			Angle:     90,
+		},
 	}
 
 	SkillRegistry["SoldierShieldBash"] = &Skill{
@@ -53,6 +61,12 @@ func InitSkills() {
 			DefenseStat:       "ControlResistance",
 		},
 		ScoreBase: 2.0,
+		Hitbox: &HitboxConfig{
+			Shape:     HitboxCone,
+			MinRadius: 0.2,
+			MaxRadius: 2.0,
+			Angle:     60,
+		},
 	}
 
 	SkillRegistry["SoldierGroundSlam"] = &Skill{
@@ -79,6 +93,10 @@ func InitSkills() {
 			DefenseStat:       "ControlResistance",
 		},
 		ScoreBase: 3.5,
+		Hitbox: &HitboxConfig{
+			Shape:     HitboxCircle,
+			MaxRadius: 3.0,
+		},
 	}
 
 	SkillRegistry["SoldierLongStep"] = &Skill{
@@ -100,7 +118,12 @@ func InitSkills() {
 			ScalingMultiplier: 0.1,
 			DefenseStat:       "ControlResistance",
 		},
-		ScoreBase: 5.0,
+		ScoreBase: 4.0,
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxBox,
+			Length: 3.0,
+			Width:  1.0,
+		},
 	}
 
 	SkillRegistry["SoldierShieldRush"] = &Skill{
@@ -113,25 +136,38 @@ func InitSkills() {
 		Range:             2.5,
 		CooldownSec:       5.0,
 		WindUpTime:        0.3,
-		CastTime:          0.3,
+		CastTime:          2.4,
 		RecoveryTime:      0.2,
 		Interruptible:     false,
+		ScoreBase:         4.0,
+
 		Impact: &ImpactEffect{
 			PostureDamage:     12,
 			ScalingStat:       "Strength",
 			ScalingMultiplier: 0.1,
 			DefenseStat:       "ControlResistance",
 		},
-		ScoreBase: 3.0,
+
 		Movement: &MovementConfig{
-			Speed:         4.0,
-			DurationSec:   0.3,
-			MaxDistance:   2.5,
-			DirectionLock: true,
-			TargetLock:    false,
-			Interruptible: false,
-			PushType:      constslib.PushOnImpact,
-			Style:         constslib.MovementStyle(constslib.MoveToImpact),
+			Speed:                    4.0,
+			DurationSec:              0.3,
+			MaxDistance:              4.0,
+			DirectionLock:            true,
+			TargetLock:               true,
+			Interruptible:            false,
+			PushType:                 constslib.PushOnImpact,
+			Style:                    constslib.MoveToFront,
+			SeparationRadius:         0.8,
+			SeparationForce:          0.4,
+			BlockDuringMovement:      true,  // ✅ escudo levantado
+			StopOnFirstHit:           false, // ✅ continua empurrando
+			PushTargetDuringMovement: true,  // ✅ engata e arrasta
+		},
+
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxLine,
+			Length: 2.5,
+			Width:  1.2,
 		},
 	}
 
@@ -157,6 +193,8 @@ func InitSkills() {
 		ScoreBase: 4.0,
 	}
 
+	// ===== WOLF SKILLS =====
+
 	SkillRegistry["Bite"] = &Skill{
 		ID:                "Bite",
 		Name:              "Bite",
@@ -178,6 +216,11 @@ func InitSkills() {
 		},
 		ScoreBase:     1.0,
 		StaminaDamage: 5,
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxBox,
+			Length: 2.2,
+			Width:  1.0,
+		},
 	}
 
 	SkillRegistry["Lacerate"] = &Skill{
@@ -208,6 +251,12 @@ func InitSkills() {
 		},
 		ScoreBase:     5.0,
 		StaminaDamage: 10,
+		Hitbox: &HitboxConfig{
+			Shape:     HitboxCone,
+			MinRadius: 0.3,
+			MaxRadius: 2.5,
+			Angle:     100,
+		},
 	}
 
 	SkillRegistry["Leap"] = &Skill{
@@ -220,28 +269,41 @@ func InitSkills() {
 		Range:             3.0,
 		CooldownSec:       6.0,
 		WindUpTime:        0.3,
-		CastTime:          2,
-		RecoveryTime:      0.3,
+		CastTime:          1.2,
+		RecoveryTime:      0.4,
 		Interruptible:     false,
+		ScoreBase:         4.5,
+		StaminaDamage:     15,
+
 		Impact: &ImpactEffect{
 			PostureDamage:     12,
 			ScalingStat:       "Strength",
 			ScalingMultiplier: 0.15,
 			DefenseStat:       "ControlResistance",
 		},
-		ScoreBase:     4.5,
-		StaminaDamage: 15,
+
 		Movement: &MovementConfig{
-			Speed:         8.0,
-			DurationSec:   2,
-			MaxDistance:   3.0,
-			DirectionLock: true,
-			MicroHoming:   true,
-			TargetLock:    true,
-			Interruptible: false,
-			ExtraDistance: 0,
-			PushType:      constslib.PushOnEnd,
-			Style:         constslib.MoveThrough,
+			Speed:                    7.5,
+			DurationSec:              0.66,
+			MaxDistance:              5.0,
+			DirectionLock:            true,
+			MicroHoming:              true,
+			TargetLock:               true,
+			Interruptible:            false,
+			ExtraDistance:            0,
+			PushType:                 constslib.PushOnImpact,
+			Style:                    constslib.MoveToFront,
+			SeparationRadius:         0.9,
+			SeparationForce:          0.5,
+			BlockDuringMovement:      false, // ❌ Leap não bloqueia
+			StopOnFirstHit:           false, // ❌ Leap atravessa
+			PushTargetDuringMovement: false, // ❌ Leap não engata
+		},
+
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxLine,
+			Length: 5.0,
+			Width:  1.4,
 		},
 	}
 

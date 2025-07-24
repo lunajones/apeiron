@@ -14,38 +14,34 @@ import (
 	"github.com/lunajones/apeiron/service/helper/finder"
 )
 
-type CounterMoveNode struct {
-	actionRegistered bool
-}
+type CounterMoveNode struct{}
 
 func (n *CounterMoveNode) Tick(c *creature.Creature, ctx interface{}) interface{} {
 	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
 	if !ok {
-		log.Printf("[COUNTER-MOVE] [%s] contexto inválido", c.Handle.String())
+		log.Printf("[COUNTER-MOVE] [%s] contexto inválido", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
-	// ⚠️ Verifica se o valor de Counter está alto o suficiente
-	if c.GetCombatDrive().Counter < 0.5 && c.GetCombatDrive().Counter >= 0.8 {
+	drive := c.GetCombatDrive()
+	if drive.Counter < 0.5 || drive.Counter >= 0.8 {
+		log.Printf("[COUNTER-MOVE] [%s] Counter %.2f fora do intervalo", c.GetPrimaryType(), drive.Counter)
 		return core.StatusFailure
 	}
 
-	// ✅ Reseta o counter (ou decai) após consumir
-	c.GetCombatDrive().Counter = 0
+	// ✅ Consome o Counter
+	drive.Counter = 0
 
 	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
 	if target == nil {
-		log.Printf("[COUNTER-MOVE] [%s] sem alvo válido", c.Handle.String())
+		log.Printf("[COUNTER-MOVE] [%s] sem alvo válido", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
-	if !n.actionRegistered {
-		c.RecentActions = append(c.RecentActions, constslib.CombatActionCounter)
-		n.actionRegistered = true
-	}
+	c.AddRecentAction(constslib.CombatActionCounter)
 
 	// Direção entre criatura e alvo
-	dirVec := target.GetPosition().Sub2D(c.Position).Normalize()
+	dirVec := position.NewVector2DFromTo(c.Position, target.GetPosition()).Normalize()
 	perp := position.RotateVector2D(dirVec, math.Pi/2).Normalize()
 
 	// Tenta mover para o lado direito ou esquerdo
@@ -68,11 +64,11 @@ func (n *CounterMoveNode) Tick(c *creature.Creature, ctx interface{}) interface{
 			Start:    time.Now(),
 		}
 
-		log.Printf("[COUNTER-MOVE] [%s] ativou impulse lateral para (%.2f, %.2f)", c.Handle.String(), dest.X, dest.Z)
+		log.Printf("[COUNTER-MOVE] [%s] ativou impulse lateral para (%.2f, %.2f)", c.GetPrimaryType(), dest.X, dest.Z)
 		return core.StatusSuccess
 	}
 
-	log.Printf("[COUNTER-MOVE] [%s] nenhum destino lateral disponível", c.Handle.String())
+	log.Printf("[COUNTER-MOVE] [%s] nenhum destino lateral disponível", c.GetPrimaryType())
 	return core.StatusFailure
 }
 

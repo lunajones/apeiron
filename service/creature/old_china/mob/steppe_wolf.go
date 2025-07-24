@@ -14,9 +14,6 @@ import (
 	decorator "github.com/lunajones/apeiron/service/ai/core/decorator"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/ai/node"
-	"github.com/lunajones/apeiron/service/ai/node/defensive"
-	"github.com/lunajones/apeiron/service/ai/node/helper"
-	"github.com/lunajones/apeiron/service/ai/node/offensive"
 	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -67,8 +64,8 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64, ctx *dynam
 		SmellRange:            14,
 		DetectionRadius:       24.0,
 		AttackRange:           1.5,
-		WalkSpeed:             2.5,
-		RunSpeed:              4.5,
+		WalkSpeed:             1.8,
+		RunSpeed:              3.5,
 		BlockableChance:       0.0,
 		DodgableChance:        1.0,
 		DodgeDistance:         3.5,
@@ -97,6 +94,7 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64, ctx *dynam
 		RegisteredSkills: []*model.Skill{
 			model.SkillRegistry["Bite"],
 			model.SkillRegistry["Lacerate"],
+			model.SkillRegistry["Leap"],
 		},
 		SkillStates: map[constslib.SkillAction]*model.SkillState{
 			constslib.Basic:  &model.SkillState{},
@@ -222,34 +220,39 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64, ctx *dynam
 	// 		constslib.AnimationCombatReady,
 	// 	),
 	// )
-	tree.AddSubtree(constslib.AIStateCombat,
-		core.NewSelectorNode(
-			// OFENSIVO
-			core.NewSequenceNode(
-				core.NewSelectorNode(
-					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-						return c.NextSkillToUse != nil
-					}),
-					&offensive.PlanOffensiveSkillNode{},
-				),
-				&offensive.CheckSkillRangeNode{},
-				&offensive.SkillStateNode{},
-			),
+	// tree.AddSubtree(constslib.AIStateCombat,
+	// 	core.NewSelectorNode(
 
-			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
-			core.NewSelectorNode(
-				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
-				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
-				&helper.OnlyIfNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
-			),
+	// 		// OFENSIVO
+	// 		core.NewSequenceNode(
+	// 			&helper.ValidateCombatStateNode{},
 
-			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
-			core.NewSelectorNode(
-				// &helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
-				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
-			),
-		),
-	)
+	// 			core.NewSelectorNode(
+	// 				helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+	// 					return c.NextSkillToUse != nil
+	// 				}),
+	// 				&offensive.PlanOffensiveSkillNode{},
+	// 			),
+	// 			&offensive.CheckSkillRangeNode{},
+	// 		),
+
+	// 		// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
+	// 		core.NewSelectorNode(
+	// 			// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
+	// 			&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+	// 			&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
+	// 		),
+
+	// 		// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
+	// 		core.NewSelectorNode(
+	// 			&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+	// 			&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
+	// 		),
+
+	// 		// 🛑 SAI DO COMBATE SE NÃO HÁ ALVOS VÁLIDOS
+	// 		&neutral.ExitCombatIfNoValidTargetsNode{},
+	// 	),
+	// )
 
 	c.BehaviorTree = tree
 	c.UpdateFacingDirection(ctx)

@@ -60,8 +60,11 @@ const (
 type AnimationState string
 
 const (
-	AnimationIdle        AnimationState = "Idle"
-	AnimationWalk        AnimationState = "Walk"
+	AnimationIdle      AnimationState = "Idle"
+	AnimationWalk      AnimationState = "Walk"
+	AnimationDodge     AnimationState = "Dodge"
+	AnimationKnockback AnimationState = "Knockback"
+
 	AnimationRun         AnimationState = "Run"
 	AnimationCrouchWalk  AnimationState = "CrouchWalk"
 	AnimationCombatReady AnimationState = "CombatReady"
@@ -92,6 +95,7 @@ const (
 	CombatActionDodgeSuccess     CombatAction = "DodgeSuccess"
 	CombatActionMicroRetreat     CombatAction = "MicroRetreat"
 	CombatActionCircleAround     CombatAction = "CircleAround"
+	CombatActionAttackWindow     CombatAction = "AttackWindow"
 	CombatActionApproach         CombatAction = "Approach"
 	CombatActionChase            CombatAction = "Chase"
 	CombatActionAttackSuccess    CombatAction = "AttackSuccess"
@@ -110,7 +114,9 @@ const (
 	MovementPlanApproach     MovementPlanType = "Approach"
 	MovementPlanChase        MovementPlanType = "Chase"
 	MovementPlanMicroRetreat MovementPlanType = "MicroRetreat"
+	MovementPlanHop          MovementPlanType = "Hop"
 	MovementPlanCircle       MovementPlanType = "Circle"
+	MovementPlanSneak        MovementPlanType = "Sneak"
 	MovementPlanCounter      MovementPlanType = "Counter"
 )
 

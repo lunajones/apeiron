@@ -182,6 +182,8 @@ func (m *MovementController) updateImpulseMovement(mov model.Movable) bool {
 			mov.SetTorsoDirection(dir)
 		}
 
+		// ✅ Marca como desativado explicitamente
+		m.ImpulseState.Active = false
 		m.ImpulseState = nil
 		return true
 	}
@@ -380,4 +382,27 @@ func (p *MovementPlan) IsActive() bool {
 
 func (p *MovementPlan) Is(planType consts.MovementPlanType) bool {
 	return p != nil && p.Type == planType && p.IsActive()
+}
+
+func (m *MovementController) HasArrived(mov model.Movable) bool {
+	dest := m.getCurrentDestination()
+	return m.checkProximity(mov, dest)
+}
+
+func (m *MovementController) ForceImpulseAwayFromTarget(distance float64) {
+	current := m.CurrentIntentDest
+	origin := m.TargetPosition
+	dir := position.CalculateDirection2D(origin, current)
+	if dir.Length() == 0 {
+		return
+	}
+
+	dir = dir.Normalize()
+	dest := current.AddOffset(dir.X*distance, dir.Z*distance)
+
+	m.SetImpulseMovement(current, dest, 250*time.Millisecond)
+}
+
+func (m *MovementController) IsImpulsing() bool {
+	return m.ImpulseState != nil && m.ImpulseState.Active
 }

@@ -27,7 +27,7 @@ func (n *CircleAroundTargetNode) Tick(c *creature.Creature, _ interface{}) inter
 	if c.NextSkillToUse != nil {
 		state := c.SkillStates[c.NextSkillToUse.Action]
 		if state != nil && state.InUse && (state.WindUpFired || state.CastFired || state.RecoveryFired) {
-			color.Yellow("[CIRCLE] [%s] impedido por ciclo ativo de skill: windup/cast/recovery", c.PrimaryType)
+			color.Yellow("[CIRCLE] [%s] impedido por ciclo ativo de skill", c.PrimaryType)
 			return core.StatusFailure
 		}
 	}
@@ -35,13 +35,11 @@ func (n *CircleAroundTargetNode) Tick(c *creature.Creature, _ interface{}) inter
 	plan := c.MoveCtrl.MovementPlan
 	if plan != nil && plan.Type == constslib.MovementPlanCircle {
 		if time.Now().Before(plan.ExpiresAt) {
-			color.Yellow("[CIRCLE] [%s] plano CIRCLE ativo, ignorando novo plano", c.PrimaryType)
+			color.Yellow("[CIRCLE] [%s] plano CIRCLE ativo", c.PrimaryType)
 			return core.StatusRunning
 		}
-		color.HiRed("[CIRCLE] [%s] plano CIRCLE expirou, limpando movimento", c.PrimaryType)
+		color.HiRed("[CIRCLE] [%s] plano CIRCLE expirou", c.PrimaryType)
 		c.GetContext().ClearClaims(c.Handle)
-		c.ClearMovementIntent()
-		c.SetAnimationState(constslib.AnimationIdle)
 		c.MoveCtrl.MovementPlan = nil
 	}
 
@@ -51,7 +49,7 @@ func (n *CircleAroundTargetNode) Tick(c *creature.Creature, _ interface{}) inter
 
 	drive := c.GetCombatDrive()
 	if time.Since(c.GetLastCircleAt()) < 3*time.Second {
-		color.Yellow("[CIRCLE] [%s] cooldown interno ativo", c.PrimaryType)
+		color.Yellow("[CIRCLE] [%s] cooldown ativo", c.PrimaryType)
 		return core.StatusFailure
 	}
 
@@ -61,12 +59,12 @@ func (n *CircleAroundTargetNode) Tick(c *creature.Creature, _ interface{}) inter
 	}
 
 	if c.HasRecentlyMissedSkill() || target.IsBlocking() {
-		color.White("[CIRCLE] [%s] falha recente ou alvo bloqueando, reposicionando", c.PrimaryType)
+		color.White("[CIRCLE] [%s] falha recente ou bloqueio detectado, reposicionando", c.PrimaryType)
 		return n.executeCircle(c, target)
 	}
 
 	if rand.Float64() < 0.2+drive.Counter*0.3 {
-		color.White("[CIRCLE] [%s] decisão randômica influenciada pelo drive", c.PrimaryType)
+		color.White("[CIRCLE] [%s] decisão randômica pelo drive", c.PrimaryType)
 		return n.executeCircle(c, target)
 	}
 
@@ -75,73 +73,41 @@ func (n *CircleAroundTargetNode) Tick(c *creature.Creature, _ interface{}) inter
 
 func (n *CircleAroundTargetNode) executeCircle(c *creature.Creature, target model.Targetable) interface{} {
 	if c.MoveCtrl == nil {
-		log.Printf("[CIRCLE] [%s] MoveCtrl está nil — abortando", c.PrimaryType)
+		log.Printf("[CIRCLE] [%s] MoveCtrl nil", c.PrimaryType)
 		return core.StatusFailure
 	}
 
 	svcCtx := c.GetContext()
-	idealRange := c.NextSkillToUse.Range
-	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
-	inRange := dist >= idealRange*0.9 && dist <= idealRange*1.1
+	idealRange := 1.5
+	if c.NextSkillToUse != nil {
+		idealRange = c.NextSkillToUse.Range
+	}
 
-	c.RecentActions = append(c.RecentActions, constslib.CombatActionCircleAround)
+	c.AddRecentAction(constslib.CombatActionCircleAround)
 
-	if !finder.IsInFieldOfView(target, c, 100.0) && inRange {
-		color.Green("[CIRCLE] [%s] pronto para atacar — fora do cone e no range", c.PrimaryType)
+	if !finder.IsInFieldOfView(target, c, 100.0) {
+		color.Green("[CIRCLE] [%s] pronto para atacar — fora do cone", c.PrimaryType)
 		return core.StatusSuccess
 	}
 
-	if dist > idealRange*0.9 {
-		moveTo := target.GetPosition()
+	dirVec := position.NewVector2DFromTo(c.GetPosition(), target.GetPosition()).Normalize()
+	angle := rand.Float64()*1.5708 - 0.7854 // ±45°
+	perp := position.RotateVector2D(dirVec, angle).Normalize()
+	moveOffset := perp.Scale(3.0)
+	moveTo := c.GetPosition().AddVector2D(moveOffset)
 
-		if !svcCtx.NavMesh.IsWalkable(moveTo) || !svcCtx.ClaimPosition(moveTo, c.Handle) {
-			color.HiRed("[CIRCLE] [%s] posição inválida ou já ocupada para aproximação", c.PrimaryType)
-			return core.StatusFailure
-		}
-
-		c.ClearMovementIntent()
-		c.MoveCtrl.IsMoving = false
-		c.MoveCtrl.SetMoveTarget(moveTo, c.WalkSpeed, 0.0)
-		c.SetAnimationState(constslib.AnimationWalk)
-		c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
-			constslib.MovementPlanCircle,
-			target.GetHandle(),
-			idealRange,
-			3*time.Second,
-			target.GetPosition(),
-		)
-		c.SetLastCircleAt(time.Now())
-		color.HiCyan("[CIRCLE] [%s] aproximando para distância ideal (dist=%.2f)", c.PrimaryType, dist)
-		return core.StatusRunning
-	}
-
-	minMoveDist := 3.0
-	dirVec := position.NewVector2DFromTo(target.GetPosition(), c.GetPosition()).Normalize()
-	angle := rand.Float64()*1.5708 - 0.7854
-	perp := position.RotateVector2D(dirVec, angle)
-
-	moveOffset := perp.Scale(dist)
-	if moveOffset.Length() < minMoveDist {
-		moveOffset = perp.Normalize().Scale(minMoveDist)
-	}
-
-	moveTo := target.GetPosition().AddVector2D(moveOffset)
 	finalDist := position.CalculateDistance(c.GetPosition(), moveTo)
-
 	if finalDist < 2.9 {
-		color.HiRed("[CIRCLE] [%s] ponto de destino muito próximo (%.2f), abortando", c.PrimaryType, finalDist)
+		color.HiRed("[CIRCLE] [%s] destino muito próximo (%.2f)", c.PrimaryType, finalDist)
 		return core.StatusFailure
 	}
 
 	if !svcCtx.NavMesh.IsWalkable(moveTo) || !svcCtx.ClaimPosition(moveTo, c.Handle) {
-		color.HiRed("[CIRCLE] [%s] destino de movimento inválido ou já ocupado", c.PrimaryType)
+		color.HiRed("[CIRCLE] [%s] destino inválido", c.PrimaryType)
 		return core.StatusFailure
 	}
 
-	c.ClearMovementIntent()
-	c.MoveCtrl.IsMoving = false
 	c.MoveCtrl.SetMoveTarget(moveTo, c.WalkSpeed*0.7, 0.1)
-	c.SetAnimationState(constslib.AnimationWalk)
 	c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
 		constslib.MovementPlanCircle,
 		target.GetHandle(),
@@ -151,14 +117,12 @@ func (n *CircleAroundTargetNode) executeCircle(c *creature.Creature, target mode
 	)
 	c.SetLastCircleAt(time.Now())
 
-	color.White("[CIRCLE] [%s] circulando o alvo (finalDist=%.2f)", c.PrimaryType, finalDist)
+	color.White("[CIRCLE] [%s] circulando o alvo (%.2f)", c.PrimaryType, finalDist)
 	return core.StatusRunning
 }
 
 func (n *CircleAroundTargetNode) Reset(c *creature.Creature) {
-	color.Yellow("[CIRCLE] [RESET] [%s] limpando movimento", c.PrimaryType)
+	color.Yellow("[CIRCLE] [RESET] [%s]", c.PrimaryType)
 	c.GetContext().ClearClaims(c.Handle)
-	c.ClearMovementIntent()
-	c.SetAnimationState(constslib.AnimationIdle)
 	c.MoveCtrl.MovementPlan = nil
 }

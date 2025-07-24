@@ -6,88 +6,117 @@ import (
 	constslib "github.com/lunajones/apeiron/lib/consts"
 )
 
-type Skill struct {
-	ID string
+// -- Core Skill Struct --
 
+type Skill struct {
+	ID                string
 	Name              string
+	Tags              *SkillTags
 	Action            constslib.SkillAction
-	SkillType         constslib.SkillType // "Physical", "Magic", "Utility", "Effect"
+	SkillType         constslib.SkillType
 	Range             float64
 	CooldownSec       float64
 	InitialMultiplier float64
 
-	HasDOT     bool
-	DOT        *DOTConfig
-	AOE        *AOEConfig
-	Projectile *ProjectileConfig
-	Teleport   *TeleportConfig
-	Impact     *ImpactEffect
-	Conditions *SkillCondition
+	WindUpTime           float64
+	CastTime             float64
+	RecoveryTime         float64
+	Interruptible        bool
+	CanCastWhileBlocking bool
 
 	TargetLock     bool
 	GroundTargeted bool
 	RotationLock   bool
-	CastTime       float64
-	WindUpTime     float64
-	RecoveryTime   float64
-	Interruptible  bool // NOVO: permite definir se a skill pode ser interrompida durante execução
 
-	ScoreBase float64
+	Impact     *ImpactEffect
+	Movement   *MovementConfig
+	AOE        *AOEConfig
+	Projectile *ProjectileConfig
+	Teleport   *TeleportConfig
+	DOT        *DOTConfig
+	HasDOT     bool
+	Buff       *BuffConfig
+	Debuff     *DebuffConfig
+	Conditions *SkillCondition
+	Hitbox     *HitboxConfig
 
-	Movement *MovementConfig `json:"movement,omitempty"` // Indica se essa skill causa movimento
-
-	Buff   *BuffConfig   // ✅ Configuração de Buff (nil se não tiver)
-	Debuff *DebuffConfig // ✅ Configuração de Debuff (nil se não tiver)
-
-	StaminaDamage        float64 // Dano causado à stamina do bloqueador (ou 0 se não aplicar)
-	CanCastWhileBlocking bool
-
-	Tags *SkillTags // ← adiciona aqui
-
+	StaminaDamage float64
+	ScoreBase     float64
 }
 
+// -- Runtime Skill State --
+
 type SkillState struct {
-	Skill       *Skill
-	StartedAt   time.Time
-	WindUpUntil time.Time
-
-	CastUntil     time.Time
-	RecoveryUntil time.Time
-	CooldownUntil time.Time
-	InUse         bool
-
-	ChargesLeft int
-	LastUsedAt  time.Time
-
-	EffectApplied   bool
-	WindUpFired     bool // ✅ novo campo
-	CastFired       bool
-	RecoveryFired   bool   // <- novo campo
-	NextQueuedSkill *Skill // NOVO: permite enfileirar próxima skill
-	WasInterrupted  bool   // NOVO: indica se esta execução foi interrompida
-	AppliedBuffID   string
-
+	Skill                         *Skill
+	StartedAt                     time.Time
+	WindUpUntil                   time.Time
+	CastUntil                     time.Time
+	RecoveryUntil                 time.Time
+	CooldownUntil                 time.Time
+	InUse                         bool
+	ChargesLeft                   int
+	LastUsedAt                    time.Time
+	EffectApplied                 bool
+	WindUpFired                   bool
+	CastFired                     bool
+	RecoveryFired                 bool
+	NextQueuedSkill               *Skill
+	WasInterrupted                bool
+	AppliedBuffID                 string
 	HasAggressiveIntentRegistered bool
 }
 
-type MovementConfig struct {
-	Speed         float64                 `json:"speed"`         // Velocidade do avanço
-	DurationSec   float64                 `json:"durationSec"`   // Duração total do avanço
-	MaxDistance   float64                 `json:"maxDistance"`   // Distância máxima
-	ExtraDistance float64                 `json:"extraDistance"` // ← NOVO! opcional, default 0
-	DirectionLock bool                    `json:"directionLock"` // Travar direção no início (true = sem homing)
-	MicroHoming   bool                    `json:"microHoming"`   // Permite leve ajuste inicial (ex: 10% do avanço)
-	TargetLock    bool                    `json:"targetLock"`    // Mira na posição do alvo no início
-	Interruptible bool                    `json:"interruptible"` // Se o avanço pode ser interrompido (ex: por parry, block)
-	PushType      constslib.SkillPushType `json:"pushType"`      // ← NOVO! Tipo de push associado ao movimento
-	Style         constslib.MovementStyle `json:"style"`
+func (s *SkillState) CanBeCancelled() bool {
+	if s == nil || s.Skill == nil {
+		return true
+	}
+
+	if s.InUse && !s.Skill.Interruptible {
+		return false
+	}
+
+	now := time.Now()
+
+	if now.Before(s.WindUpUntil) {
+		return true
+	}
+
+	if now.After(s.WindUpUntil) && now.Before(s.CastUntil) {
+		return s.Skill.Interruptible
+	}
+
+	if now.After(s.CastUntil) && now.Before(s.RecoveryUntil) {
+		return s.RecoveryFired
+	}
+
+	return false
 }
 
-type DOTConfig struct {
-	DurationSec int
-	TickSec     int
-	TickPower   int
-	EffectType  constslib.EffectType
+// -- Config Structs --
+
+type ImpactEffect struct {
+	PostureDamage     float64
+	ScalingStat       string
+	ScalingMultiplier float64
+	DefenseStat       string
+}
+
+type MovementConfig struct {
+	Speed                    float64
+	DurationSec              float64
+	MaxDistance              float64
+	ExtraDistance            float64
+	DirectionLock            bool
+	MicroHoming              bool
+	TargetLock               bool
+	Interruptible            bool
+	PushType                 constslib.SkillPushType
+	Style                    constslib.MovementStyle
+	BlockDuringMovement      bool // Ativa bloqueio frontal enquanto a skill estiver em movimento
+	StopOnFirstHit           bool // Finaliza o movimento ao colidir com o primeiro inimigo
+	PushTargetDuringMovement bool
+	SeparationRadius         float64 // Distância para empurrar outros ao final do movimento
+	SeparationForce          float64
 }
 
 type AOEConfig struct {
@@ -107,34 +136,33 @@ type TeleportConfig struct {
 	DistanceOffset float64
 }
 
-type BuffConfig struct {
-	Name          string             // Nome do buff (ex: "Fortitude", "Haste")
-	DurationSec   float64            // Duração em segundos
-	StatModifiers map[string]float64 // Modificadores de atributos (ex: "Strength": +10)
-	Resistances   map[string]float64 // Modificadores de resistência (ex: "Fire": +15)
-	IsStackable   bool               // Permite acumular múltiplas instâncias
-	TargetSelf    bool               // ✅ true se o buff só pode ser aplicado no caster
+type DOTConfig struct {
+	DurationSec int
+	TickSec     int
+	TickPower   int
+	EffectType  constslib.EffectType
+}
 
-	MaxStacks      int    // Quantidade máxima de stacks permitidos
-	VisualEffectID string // ID do efeito visual associado
+type BuffConfig struct {
+	Name           string
+	DurationSec    float64
+	StatModifiers  map[string]float64
+	Resistances    map[string]float64
+	IsStackable    bool
+	TargetSelf     bool
+	MaxStacks      int
+	VisualEffectID string
 }
 
 type DebuffConfig struct {
-	Name           string             // Nome do debuff (ex: "Poison", "Slow")
-	DurationSec    float64            // Duração em segundos
-	StatModifiers  map[string]float64 // Reduções de atributos (ex: "Speed": -20)
-	Resistances    map[string]float64 // Redução de resistência (ex: "Armor": -10)
-	DamagePerSec   float64            // Dano por segundo (caso aplique)
-	IsStackable    bool               // Permite acumular múltiplas instâncias
-	MaxStacks      int                // Quantidade máxima de stacks permitidos
-	VisualEffectID string             // ID do efeito visual associado
-}
-
-type ImpactEffect struct {
-	PostureDamage     float64 // Agora é o campo único e definitivo para postura
-	ScalingStat       string
-	ScalingMultiplier float64
-	DefenseStat       string
+	Name           string
+	DurationSec    float64
+	StatModifiers  map[string]float64
+	Resistances    map[string]float64
+	DamagePerSec   float64
+	IsStackable    bool
+	MaxStacks      int
+	VisualEffectID string
 }
 
 type SkillCondition struct {
@@ -158,34 +186,26 @@ type SkillResult struct {
 	WasAOEHit     bool
 }
 
-func (s *SkillState) CanBeCancelled() bool {
-	if s == nil || s.Skill == nil {
-		return true
-	}
+type HitboxShape int
 
-	if s.InUse && !s.Skill.Interruptible {
-		return false
-	}
+const (
+	HitboxBox HitboxShape = iota
+	HitboxCone
+	HitboxCircle
+	HitboxLine
+)
 
-	now := time.Now()
-
-	// Windup: sempre cancelável
-	if now.Before(s.WindUpUntil) {
-		return true
-	}
-
-	// Cast: só se interruptível
-	if now.After(s.WindUpUntil) && now.Before(s.CastUntil) {
-		return s.Skill.Interruptible
-	}
-
-	// Recovery: só se já ativou o efeito
-	if now.After(s.CastUntil) && now.Before(s.RecoveryUntil) {
-		return s.RecoveryFired // 💡 nova trava
-	}
-
-	return false
+type HitboxConfig struct {
+	Shape       HitboxShape
+	Length      float64
+	Width       float64
+	Angle       float64
+	MinRadius   float64
+	MaxRadius   float64
+	OffsetFront float64
 }
+
+// -- Tag Handling --
 
 type SkillTags struct {
 	values map[string]bool
@@ -194,7 +214,7 @@ type SkillTags struct {
 func NewSkillTags(tags ...string) *SkillTags {
 	t := &SkillTags{values: make(map[string]bool)}
 	for _, tag := range tags {
-		t.values[tag] = true
+		t.values[string(tag)] = true
 	}
 	return t
 }

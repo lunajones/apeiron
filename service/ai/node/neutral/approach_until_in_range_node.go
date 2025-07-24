@@ -10,7 +10,6 @@ import (
 	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/core"
-	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/helper/finder"
 )
@@ -23,10 +22,9 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 			color.Yellow("[APPROACH-IN-RANGE] [%s] plano ativo, ignorando novo", c.GetPrimaryType())
 			return core.StatusRunning
 		} else {
-			color.HiRed("[APPROACH-IN-RANGE] [%s] plano expirado, limpando", c.GetPrimaryType())
-			c.ClearMovementIntent()
-			c.SetAnimationState(constslib.AnimationIdle)
+			color.HiRed("[APPROACH-IN-RANGE] [%s] plano expirado", c.GetPrimaryType())
 			c.MoveCtrl.MovementPlan = nil
+			// FSM vai cuidar da limpeza
 		}
 	}
 
@@ -35,7 +33,7 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 	}
 
 	drive := c.GetCombatDrive()
-	if drive.Caution < 0.4 || drive.Caution >= 0.7 {
+	if drive.Caution < 0.2 {
 		color.Yellow("[APPROACH-IN-RANGE] [%s] Caution %.2f fora do intervalo", c.GetPrimaryType(), drive.Caution)
 		return core.StatusFailure
 	}
@@ -45,27 +43,18 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 		return core.StatusFailure
 	}
 
-	svcCtx, ok := ctx.(*dynamic_context.AIServiceContext)
-	if !ok {
-		color.HiRed("[APPROACH-IN-RANGE] [%s] contexto inválido", c.GetPrimaryType())
-		return core.StatusFailure
-	}
-
-	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, svcCtx)
+	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, c.GetContext())
 	if target == nil {
 		color.HiRed("[APPROACH-IN-RANGE] [%s] alvo não encontrado", c.GetPrimaryType())
 		return core.StatusFailure
 	}
 
-	c.RecentActions = append(c.RecentActions, constslib.CombatActionApproach)
+	c.AddRecentAction(constslib.CombatActionApproach)
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
 	rangeNeeded := c.NextSkillToUse.Range
 
 	if dist <= rangeNeeded {
-		c.ClearMovementIntent()
-		c.SetAnimationState(constslib.AnimationIdle)
-		c.MoveCtrl.MovementPlan = nil
 		color.Green("[APPROACH-IN-RANGE] [%s] no range para %s (dist=%.2f)", c.GetPrimaryType(), c.NextSkillToUse.Name, dist)
 		return core.StatusSuccess
 	}
@@ -79,11 +68,10 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 	var destination position.Position
 	for attempts < 4 {
 		destination = target.GetPosition().AddVector2D(lateralVec)
-		if svcCtx.ClaimPosition(destination, c.GetHandle()) {
+		if c.GetContext().ClaimPosition(destination, c.GetHandle()) {
 			break
 		}
-		// Gira o vetor lateral (±90°)
-		angle := math.Pi / 4 // 45°
+		angle := math.Pi / 4
 		rotation := (rand.Float64()*2 - 1) * angle
 		sin := math.Sin(rotation)
 		cos := math.Cos(rotation)
@@ -99,28 +87,23 @@ func (n *ApproachUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) i
 		return core.StatusFailure
 	}
 
-	if !c.MoveCtrl.IsMoving || len(c.MoveCtrl.CurrentPath) == 0 {
-		walkSpeed := c.WalkSpeed * 0.5
-		c.MoveCtrl.SetMoveTarget(destination, walkSpeed, rangeNeeded)
-		c.SetAnimationState(constslib.AnimationWalk)
+	// FSM já controla se está se movendo ou não, só planejar aqui
+	c.MoveCtrl.SetMoveTarget(destination, c.WalkSpeed*0.5, rangeNeeded)
 
-		c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
-			constslib.MovementPlanApproach,
-			target.GetHandle(),
-			rangeNeeded,
-			5*time.Second,
-			target.GetPosition(),
-		)
+	c.MoveCtrl.MovementPlan = movement.NewMovementPlan(
+		constslib.MovementPlanApproach,
+		target.GetHandle(),
+		rangeNeeded,
+		5*time.Second,
+		target.GetPosition(),
+	)
 
-		color.HiCyan("[APPROACH-IN-RANGE] [%s] avançando com cautela (dist=%.2f)", c.GetPrimaryType(), dist)
-	}
-
+	color.HiCyan("[APPROACH-IN-RANGE] [%s] avançando com cautela (dist=%.2f)", c.GetPrimaryType(), dist)
 	return core.StatusRunning
 }
 
 func (n *ApproachUntilInRangeNode) Reset(c *creature.Creature) {
-	color.Yellow("[APPROACH-IN-RANGE] [RESET] [%s] limpando movimento", c.GetPrimaryType())
-	c.ClearMovementIntent()
-	c.SetAnimationState(constslib.AnimationIdle)
+	color.Yellow("[APPROACH-IN-RANGE] [RESET] [%s] limpando plano", c.GetPrimaryType())
 	c.MoveCtrl.MovementPlan = nil
+	// FSM limpará o resto
 }

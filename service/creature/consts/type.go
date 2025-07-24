@@ -40,6 +40,7 @@ type CreatureTag string
 
 const (
 	TagHumanoid CreatureTag = "Humanoid"
+	TagUndead   CreatureTag = "Undead"
 	TagAnimal   CreatureTag = "Animal"
 	TagPrey     CreatureTag = "Prey"
 	TagCoward   CreatureTag = "Coward"

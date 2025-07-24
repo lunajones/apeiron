@@ -17,6 +17,9 @@ type SkillMovementState struct {
 	Config        *MovementConfig   // Configuração da skill que gerou o movimento
 	DamageApplied bool
 	Skill         *Skill
+	HitTargets    map[string]bool
+	EngagedTarget Targetable // Usado para empurrar o alvo enquanto se move
+
 }
 
 func (s *SkillMovementState) IsComplete(now time.Time, currentPos position.Position) bool {
@@ -32,4 +35,18 @@ func (s *SkillMovementState) IsComplete(now time.Time, currentPos position.Posit
 		return true
 	}
 	return false
+}
+
+func (s *SkillMovementState) HasAlreadyHit(t Targetable) bool {
+	if s.HitTargets == nil {
+		s.HitTargets = make(map[string]bool)
+	}
+	return s.HitTargets[t.GetHandle().ID]
+}
+
+func (s *SkillMovementState) MarkAsHit(t Targetable) {
+	if s.HitTargets == nil {
+		s.HitTargets = make(map[string]bool)
+	}
+	s.HitTargets[t.GetHandle().ID] = true
 }

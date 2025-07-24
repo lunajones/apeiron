@@ -16,6 +16,7 @@ import (
 	"github.com/lunajones/apeiron/service/ai/node"
 	"github.com/lunajones/apeiron/service/ai/node/defensive"
 	"github.com/lunajones/apeiron/service/ai/node/helper"
+	"github.com/lunajones/apeiron/service/ai/node/neutral"
 	"github.com/lunajones/apeiron/service/ai/node/offensive"
 	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
@@ -73,8 +74,8 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 		SmellRange:              6,
 		DetectionRadius:         12.0,
 		AttackRange:             2.5,
-		WalkSpeed:               2.5,
-		RunSpeed:                3.5,
+		WalkSpeed:               1.3,
+		RunSpeed:                2.8,
 		OriginalRunSpeed:        3.5,
 		AttackSpeed:             1.2,
 		MaxPosture:              100,
@@ -102,10 +103,11 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 		MaxBlockDuration:   3 * time.Second,
 
 		RegisteredSkills: []*model.Skill{
-			model.SkillRegistry["SoldierSlash"],
-			model.SkillRegistry["SoldierShieldBash"],
-			model.SkillRegistry["SoldierGroundSlam"],
-			model.SkillRegistry["SoldierLongStep"],
+			// model.SkillRegistry["SoldierSlash"],
+			// model.SkillRegistry["SoldierShieldBash"],
+			// model.SkillRegistry["SoldierGroundSlam"],
+			// model.SkillRegistry["SoldierLongStep"],
+			model.SkillRegistry["SoldierShieldRush"],
 		},
 		SkillStates: map[constslib.SkillAction]*model.SkillState{
 			constslib.Basic:  &model.SkillState{},
@@ -239,8 +241,11 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 	// )
 	tree.AddSubtree(constslib.AIStateCombat,
 		core.NewSelectorNode(
+
 			// OFENSIVO
 			core.NewSequenceNode(
+				&helper.ValidateCombatStateNode{},
+
 				core.NewSelectorNode(
 					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
 						return c.NextSkillToUse != nil
@@ -248,21 +253,23 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 					&offensive.PlanOffensiveSkillNode{},
 				),
 				&offensive.CheckSkillRangeNode{},
-				&offensive.SkillStateNode{},
 			),
 
 			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
 			core.NewSelectorNode(
-				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
-				// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
-				&helper.OnlyIfNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &offensive.GetApproachNodeForTagNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),
 
 			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
 			core.NewSelectorNode(
-				// &helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+				&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
 				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
 			),
+
+			// 🛑 SAI DO COMBATE SE NÃO HÁ ALVOS VÁLIDOS
+			&neutral.ExitCombatIfNoValidTargetsNode{},
 		),
 	)
 

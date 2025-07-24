@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	constslib "github.com/lunajones/apeiron/lib/consts"
 	"github.com/lunajones/apeiron/lib/handle"
 	"github.com/lunajones/apeiron/lib/position"
@@ -35,4 +37,8 @@ type Targetable interface {
 	GetFaction() string
 
 	GetCombatDrive() *CombatDrive
+	GetCombatEvents() []CombatEvent
+	RegisterCombatEvent(event CombatEvent)
+
+	ApplyImpulseFrom(from position.Position, duration time.Duration)
 }

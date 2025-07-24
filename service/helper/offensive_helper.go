@@ -58,45 +58,55 @@ func CalculateSkillScore(c *creature.Creature, target model.Targetable, skill *m
 	}
 
 	dist := position.CalculateDistance(c.GetPosition(), target.GetPosition())
+
+	// 💡 Análise tática baseada em distância e tipo de skill
 	if dist <= skill.Range {
-		score += 3.0
+		score += 3.0 // Dentro do alcance? ótimo
 	} else {
-		if skill.Action == constslib.Basic {
-			score -= (dist - skill.Range) * 0.3
+		outOfRange := dist - skill.Range
+
+		if skill.Tags.Has(constslib.SkillTagRush) {
+			// ⚡ Rush: ganha incentivo se estiver fora do alcance, especialmente entre 2–5m
+			if outOfRange <= 3.5 {
+				score += 2.5 - (outOfRange * 0.5) // Diminui com a distância, mas ainda vale a pena
+			} else {
+				score -= outOfRange // longe demais, penaliza normal
+			}
 		} else {
-			score -= (dist - skill.Range)
+			// ❌ Skills normais fora do range: penaliza pesado
+			if skill.Action == constslib.Basic {
+				score -= outOfRange * 0.3
+			} else {
+				score -= outOfRange
+			}
 		}
 	}
 
 	// DRIVE INFLUÊNCIA TÁTICA
 	drive := c.GetCombatDrive()
 
-	// Se alvo está castando → prioriza skills de interrupção
 	if target.IsCasting() && skill.Tags.Has(constslib.SkillTagInterrupt) {
 		score += 3.0
 	}
 
-	// Se Termination alto → prioriza burst e rush
 	if drive.Termination > 0.6 {
 		if skill.Tags.Has(constslib.SkillTagBurst) {
 			score += 2.0
 		}
 		if skill.Tags.Has(constslib.SkillTagRush) {
-			score += 2.0
+			score += 1.5
 		}
 	}
 
-	// Se Caution alto → prioriza safe range
 	if drive.Caution > 0.5 && skill.Range >= 4.0 {
 		score += 2.0
 	}
 
-	// Se Rage alto → prioriza rush
 	if drive.Rage > 0.5 && skill.Tags.Has(constslib.SkillTagRush) {
 		score += 2.5
 	}
 
-	// COMPORTAMENTO DE CONTROLE E PUNIÇÃO
+	// CONTROLE / FINALIZAÇÃO
 	if tgtCreature, ok := target.(*creature.Creature); ok {
 		if tgtCreature.Posture < 20 && skill.Impact != nil && skill.Impact.PostureDamage > 0 {
 			score += 2.0
@@ -112,7 +122,9 @@ func CalculateSkillScore(c *creature.Creature, target model.Targetable, skill *m
 		}
 	}
 
+	// 🔀 Pequena variação aleatória pra não parecer robótico
 	score += rand.Float64() * 0.5
+
 	return score
 }
 
