@@ -27,10 +27,17 @@ message SnapshotStreamRequest {
   string zone = 1;
 }
 
+message CreatureDespawn {
+  string id = 1;
+}
+
+
 // Stream de várias criaturas por tick
 message CreatureSnapshotBatch {
   repeated CreatureSnapshot snapshots = 1;
+  repeated CreatureDespawn despawns = 2;
 }
+
 
 service CreatureSync {
   // Server-side streaming: apeiron envia snapshots contínuos

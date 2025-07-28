@@ -2,9 +2,8 @@ package grpc
 
 import (
 	"log"
-	"time"
-
 	"net"
+	"time"
 
 	"github.com/lunajones/apeiron/service/zone"
 	"google.golang.org/grpc"
@@ -36,6 +35,9 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
+	// Criaturas que estavam ativas no último tick
+	previousAlive := make(map[string]bool)
+
 	for {
 		select {
 		case <-stream.Context().Done():
@@ -44,17 +46,20 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 
 		case <-ticker.C:
 			var batch CreatureSnapshotBatch
+			currentAlive := make(map[string]bool)
 
 			creatures := zone.Zones[0].Creatures // TEMP: só da primeira zona
 			for _, c := range creatures {
+				id := c.Handle.String()
+
 				if !c.IsAlive() {
 					continue
 				}
 
+				// Criatura viva → adiciona snapshot
 				pos := c.GetPosition()
-
 				snap := &CreatureSnapshot{
-					Id:        c.Handle.String(),
+					Id:        id,
 					Name:      c.Name,
 					Type:      c.GetPrimaryType(),
 					X:         float32(pos.X),
@@ -68,9 +73,19 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 					FaceYaw:   float32(c.GetFacingDirection().YawDeg()),
 					TorsoYaw:  float32(c.GetTorsoDirection().YawDeg()),
 				}
-
 				batch.Snapshots = append(batch.Snapshots, snap)
+				currentAlive[id] = true
 			}
+
+			// Detecta criaturas que sumiram (estavam antes, mas não agora)
+			for id := range previousAlive {
+				if !currentAlive[id] {
+					batch.Despawns = append(batch.Despawns, &CreatureDespawn{Id: id})
+				}
+			}
+
+			// Atualiza o set de vivos pro próximo tick
+			previousAlive = currentAlive
 
 			if err := stream.Send(&batch); err != nil {
 				log.Printf("[gRPC] Erro ao enviar snapshot: %v", err)

@@ -7,12 +7,11 @@
 package grpc
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -209,17 +208,62 @@ func (x *SnapshotStreamRequest) GetZone() string {
 	return ""
 }
 
+type CreatureDespawn struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatureDespawn) Reset() {
+	*x = CreatureDespawn{}
+	mi := &file_service_grpc_creature_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatureDespawn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatureDespawn) ProtoMessage() {}
+
+func (x *CreatureDespawn) ProtoReflect() protoreflect.Message {
+	mi := &file_service_grpc_creature_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatureDespawn.ProtoReflect.Descriptor instead.
+func (*CreatureDespawn) Descriptor() ([]byte, []int) {
+	return file_service_grpc_creature_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreatureDespawn) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 // Stream de várias criaturas por tick
 type CreatureSnapshotBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Snapshots     []*CreatureSnapshot    `protobuf:"bytes,1,rep,name=snapshots,proto3" json:"snapshots,omitempty"`
+	Despawns      []*CreatureDespawn     `protobuf:"bytes,2,rep,name=despawns,proto3" json:"despawns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreatureSnapshotBatch) Reset() {
 	*x = CreatureSnapshotBatch{}
-	mi := &file_service_grpc_creature_proto_msgTypes[2]
+	mi := &file_service_grpc_creature_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +275,7 @@ func (x *CreatureSnapshotBatch) String() string {
 func (*CreatureSnapshotBatch) ProtoMessage() {}
 
 func (x *CreatureSnapshotBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_service_grpc_creature_proto_msgTypes[2]
+	mi := &file_service_grpc_creature_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,12 +288,19 @@ func (x *CreatureSnapshotBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatureSnapshotBatch.ProtoReflect.Descriptor instead.
 func (*CreatureSnapshotBatch) Descriptor() ([]byte, []int) {
-	return file_service_grpc_creature_proto_rawDescGZIP(), []int{2}
+	return file_service_grpc_creature_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreatureSnapshotBatch) GetSnapshots() []*CreatureSnapshot {
 	if x != nil {
 		return x.Snapshots
+	}
+	return nil
+}
+
+func (x *CreatureSnapshotBatch) GetDespawns() []*CreatureDespawn {
+	if x != nil {
+		return x.Despawns
 	}
 	return nil
 }
@@ -275,9 +326,12 @@ const file_service_grpc_creature_proto_rawDesc = "" +
 	"\bface_yaw\x18\f \x01(\x02R\afaceYaw\x12\x1b\n" +
 	"\ttorso_yaw\x18\r \x01(\x02R\btorsoYaw\"+\n" +
 	"\x15SnapshotStreamRequest\x12\x12\n" +
-	"\x04zone\x18\x01 \x01(\tR\x04zone\"M\n" +
+	"\x04zone\x18\x01 \x01(\tR\x04zone\"!\n" +
+	"\x0fCreatureDespawn\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x80\x01\n" +
 	"\x15CreatureSnapshotBatch\x124\n" +
-	"\tsnapshots\x18\x01 \x03(\v2\x16.grpc.CreatureSnapshotR\tsnapshots2c\n" +
+	"\tsnapshots\x18\x01 \x03(\v2\x16.grpc.CreatureSnapshotR\tsnapshots\x121\n" +
+	"\bdespawns\x18\x02 \x03(\v2\x15.grpc.CreatureDespawnR\bdespawns2c\n" +
 	"\fCreatureSync\x12S\n" +
 	"\x15StreamCreatureUpdates\x12\x1b.grpc.SnapshotStreamRequest\x1a\x1b.grpc.CreatureSnapshotBatch0\x01B0Z.github.com/lunajones/apeiron/service/grpc;grpcb\x06proto3"
 
@@ -293,21 +347,23 @@ func file_service_grpc_creature_proto_rawDescGZIP() []byte {
 	return file_service_grpc_creature_proto_rawDescData
 }
 
-var file_service_grpc_creature_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_service_grpc_creature_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_service_grpc_creature_proto_goTypes = []any{
 	(*CreatureSnapshot)(nil),      // 0: grpc.CreatureSnapshot
 	(*SnapshotStreamRequest)(nil), // 1: grpc.SnapshotStreamRequest
-	(*CreatureSnapshotBatch)(nil), // 2: grpc.CreatureSnapshotBatch
+	(*CreatureDespawn)(nil),       // 2: grpc.CreatureDespawn
+	(*CreatureSnapshotBatch)(nil), // 3: grpc.CreatureSnapshotBatch
 }
 var file_service_grpc_creature_proto_depIdxs = []int32{
 	0, // 0: grpc.CreatureSnapshotBatch.snapshots:type_name -> grpc.CreatureSnapshot
-	1, // 1: grpc.CreatureSync.StreamCreatureUpdates:input_type -> grpc.SnapshotStreamRequest
-	2, // 2: grpc.CreatureSync.StreamCreatureUpdates:output_type -> grpc.CreatureSnapshotBatch
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: grpc.CreatureSnapshotBatch.despawns:type_name -> grpc.CreatureDespawn
+	1, // 2: grpc.CreatureSync.StreamCreatureUpdates:input_type -> grpc.SnapshotStreamRequest
+	3, // 3: grpc.CreatureSync.StreamCreatureUpdates:output_type -> grpc.CreatureSnapshotBatch
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_service_grpc_creature_proto_init() }
@@ -321,7 +377,7 @@ func file_service_grpc_creature_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_grpc_creature_proto_rawDesc), len(file_service_grpc_creature_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

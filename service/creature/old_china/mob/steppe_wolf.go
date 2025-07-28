@@ -14,6 +14,10 @@ import (
 	decorator "github.com/lunajones/apeiron/service/ai/core/decorator"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	"github.com/lunajones/apeiron/service/ai/node"
+	"github.com/lunajones/apeiron/service/ai/node/defensive"
+	"github.com/lunajones/apeiron/service/ai/node/helper"
+	"github.com/lunajones/apeiron/service/ai/node/neutral"
+	"github.com/lunajones/apeiron/service/ai/node/offensive"
 	"github.com/lunajones/apeiron/service/ai/node/predator"
 	"github.com/lunajones/apeiron/service/creature"
 	"github.com/lunajones/apeiron/service/creature/aggro"
@@ -220,39 +224,39 @@ func NewSteppeWolf(spawnPoint position.Position, spawnRadius float64, ctx *dynam
 	// 		constslib.AnimationCombatReady,
 	// 	),
 	// )
-	// tree.AddSubtree(constslib.AIStateCombat,
-	// 	core.NewSelectorNode(
+	tree.AddSubtree(constslib.AIStateCombat,
+		core.NewSelectorNode(
 
-	// 		// OFENSIVO
-	// 		core.NewSequenceNode(
-	// 			&helper.ValidateCombatStateNode{},
+			// OFENSIVO
+			core.NewSequenceNode(
+				&helper.ValidateCombatStateNode{},
 
-	// 			core.NewSelectorNode(
-	// 				helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
-	// 					return c.NextSkillToUse != nil
-	// 				}),
-	// 				&offensive.PlanOffensiveSkillNode{},
-	// 			),
-	// 			&offensive.CheckSkillRangeNode{},
-	// 		),
+				core.NewSelectorNode(
+					helper.NewConditionNode(func(c *creature.Creature, ctx interface{}) bool {
+						return c.NextSkillToUse != nil
+					}),
+					&offensive.PlanOffensiveSkillNode{},
+				),
+				&offensive.CheckSkillRangeNode{},
+			),
 
-	// 		// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
-	// 		core.NewSelectorNode(
-	// 			// &helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CounterMoveNode{}},
-	// 			&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
-	// 			&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
-	// 		),
+			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
+			core.NewSelectorNode(
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &offensive.GetApproachNodeForTagNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
+				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
+			),
 
-	// 		// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
-	// 		core.NewSelectorNode(
-	// 			&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
-	// 			&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
-	// 		),
+			// POSICIONAMENTO — só roda se distância > 3.0 e não estiver se movendo
+			core.NewSelectorNode(
+				&helper.OnlyIfFarAndNotMovingNode{Node: &neutral.ApproachUntilInRangeNode{}},
+				&helper.OnlyIfFarAndNotMovingNode{Node: &offensive.ChaseUntilInRangeNode{}},
+			),
 
-	// 		// 🛑 SAI DO COMBATE SE NÃO HÁ ALVOS VÁLIDOS
-	// 		&neutral.ExitCombatIfNoValidTargetsNode{},
-	// 	),
-	// )
+			// 🛑 SAI DO COMBATE SE NÃO HÁ ALVOS VÁLIDOS
+			&neutral.ExitCombatIfNoValidTargetsNode{},
+		),
+	)
 
 	c.BehaviorTree = tree
 	c.UpdateFacingDirection(ctx)

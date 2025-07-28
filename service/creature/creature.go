@@ -253,11 +253,14 @@ func (c *Creature) GetTorsoDirection() position.Vector2D {
 var creatures []*Creature
 
 func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64) {
+
 	if !c.Alive {
 		return
 	}
 
 	c.SetContext(ctx)
+
+	target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, ctx)
 
 	// FSM de casting
 	if c.CombatState == constslib.CombatStateCasting {
@@ -265,7 +268,7 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 
 		combatlib.ProcessCastingFSM(&combatlib.CastingConfig{
 			Creature: c,
-			Target:   finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, ctx),
+			Target:   target,
 			Skill:    skill,
 			State:    c.SkillStates[skill.Action],
 			Now:      time.Now(),
@@ -274,13 +277,13 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 	}
 
 	c.UpdateFacingDirection(ctx)
-
-	// Defesa (block/dodge automático)
-	c.PerformDefensiveAction(deltaTime)
+	if c.GetMovementFSM() != nil && c.GetMovementFSM().GetState() != fsm.MovementStateKnockback {
+		// Defesa (block/dodge automático)
+		c.PerformDefensiveAction(deltaTime)
+	}
 
 	// 1️⃣ Movimento por habilidade (leap, charge, etc)
 	if c.SkillMovementState != nil && c.SkillMovementState.Active {
-		target := finder.FindTargetByHandles(c.Handle, c.TargetCreatureHandle, c.TargetPlayerHandle, ctx)
 		if combatlib.UpdateSkillMovement(c, c.SkillMovementState, target, ctx.NavMesh, ctx, deltaTime) {
 			log.Printf("[LEAP] [%s] SkillMovement concluído", c.Handle.String())
 			c.SkillMovementState = nil
@@ -300,11 +303,41 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 	// 3️⃣ FSM de movimento (decisão automática de estado)
 	if c.GetMovementFSM() == nil {
 		fsm := fsm.ProcessMovementFSM(fsm.FSMHooks{
-			OnClearIntent:      c.ClearMovementIntent,
-			OnSetAnimation:     c.SetAnimationState,
-			OnKnockbackImpulse: func() { c.MoveCtrl.ForceImpulseAwayFromTarget(2.0) },
-			OnHasArrived:       func() bool { return c.MoveCtrl.HasArrived(c) },
-			OnIsDodging:        c.IsDodging,
+			OnPreWalkingCheck: func() bool {
+				return !finder.WouldInvadeAnotherEntity(c.GetContext(), c, c.GetPosition(), c.MoveCtrl.TargetPosition)
+			},
+			OnClearIntent:  c.ClearMovementIntent,
+			OnSetAnimation: c.SetAnimationState,
+			OnKnockbackImpulse: func() {
+				engagedMov := target.(model.Movable)
+				if engagedMov == nil {
+					return
+				}
+				dist := position.CalculateDistance2D(c.GetPosition(), engagedMov.GetPosition())
+				if dist < 0.2 {
+					return // muito colado, evita glitch
+				}
+				target.ApplyImpulseFrom(c.GetPosition(), 300*time.Millisecond)
+			},
+			OnShouldSelfSeparate: func() bool {
+				selfPos := c.GetPosition()
+
+				if target != nil && target.IsAlive() {
+					dist := position.CalculateDistance2D(selfPos, target.GetPosition())
+					if dist < 0.4 {
+						return true
+					}
+				}
+				return false
+			},
+			OnHasArrived: func() bool { return c.MoveCtrl.HasArrived(c) },
+			OnIsDodging:  c.IsDodging,
+			OnSelfSeparationImpulse: func() {
+				log.Printf("[FSM] aplicando impulso de separação em %s", c.GetPrimaryType())
+
+				c.MoveCtrl.ForceImpulseAwayFromTarget(2.0, c.GetContext(), c.GetPrimaryType()) // empurra o próprio "c"
+			},
+
 			OnSetImpulse: func(state *movement.ImpulseMovementState) {
 				c.MoveCtrl.ImpulseState = state
 			},
@@ -312,7 +345,10 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 				return c.MoveCtrl.IsMoving // ou qualquer flag que você tenha
 			},
 			OnIsCasting: func() bool {
-				return c.IsCasting() // ou outro método seu que detecta WindUp/Cast/Recovery
+				return c.IsCasting()
+			},
+			GetSkillMovementState: func() *model.SkillMovementState {
+				return c.GetSkillMovementState()
 			},
 		})
 		c.SetMovementFSM(fsm)
@@ -798,7 +834,7 @@ func (c *Creature) ChangeAIState(newState constslib.AIState) {
 		return
 	}
 
-	// log.Printf("[Creature] %s (%s) AI State mudou: %s → %s", c.Handle.String(), c.PrimaryType, c.AIState, newState)
+	log.Printf("[Creature] %s (%s) AI State mudou: %s → %s", c.Handle.String(), c.PrimaryType, c.AIState, newState)
 	c.AIState = newState
 	c.LastStateChange = time.Now()
 
@@ -807,6 +843,13 @@ func (c *Creature) ChangeAIState(newState constslib.AIState) {
 		c.IsCorpse = true
 		c.TimeOfDeath = time.Now()
 		c.SetAnimationState(constslib.AnimationDie)
+		c.SetCombatState(constslib.CombatStateDead)
+		log.Printf("[Creature %s] morreu após receber dano.", c.Handle.String())
+
+		// 🧼 Remove do SpatialIndex reaproveitando lógica existente
+		if c.GetContext() != nil {
+			c.ConsumeCorpse(c.GetContext().SpatialIndex)
+		}
 	} else if newState == constslib.AIStateIdle {
 		c.SetAnimationState(constslib.AnimationIdle)
 	}
@@ -1000,9 +1043,6 @@ func (c *Creature) TakeDamage(amount int) {
 
 	if c.HP <= 0 {
 		c.ChangeAIState(constslib.AIStateDead)
-		c.CombatState = constslib.CombatStateDead
-		c.SetAnimationState(constslib.AnimationDie)
-		log.Printf("[Creature %s] morreu após receber dano.", c.Handle.String())
 	}
 }
 
@@ -1725,6 +1765,7 @@ func (c *Creature) SetMoveCtrl(ctrl *movement.MovementController) {
 }
 
 func (c *Creature) ApplyImpulseFrom(from position.Position, duration time.Duration) {
+	log.Printf("impulso aplicado nesta create por outra creature")
 	dir := position.CalculateDirection2D(from, c.Position)
 	if dir.Length() == 0 {
 		return
@@ -1733,5 +1774,5 @@ func (c *Creature) ApplyImpulseFrom(from position.Position, duration time.Durati
 	dist := position.CalculateDistance2D(from, c.Position)
 	dest := from.AddOffset(dir.X*dist, dir.Z*dist)
 
-	c.MoveCtrl.SetImpulseMovement(from, dest, duration)
+	c.MoveCtrl.SetImpulseMovement(from, dest, duration, c.GetContext(), c.GetPrimaryType())
 }

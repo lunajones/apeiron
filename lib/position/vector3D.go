@@ -85,3 +85,19 @@ func (v Vector3D) ToVector2D() Vector2D {
 func (v Vector3D) Length() float64 {
 	return math.Sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z)
 }
+
+func (v Vector3D) Dot(other Vector3D) float64 {
+	return v.X*other.X + v.Y*other.Y + v.Z*other.Z
+}
+
+func (v Vector3D) LengthSquared() float64 {
+	return v.X*v.X + v.Y*v.Y + v.Z*v.Z
+}
+
+func (v Vector3D) ToPosition() Position {
+	return Position{
+		X: v.X,
+		Y: v.Y,
+		Z: v.Z,
+	}
+}

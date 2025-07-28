@@ -13,6 +13,7 @@ import (
 	"github.com/lunajones/apeiron/lib/physics"
 	"github.com/lunajones/apeiron/lib/position"
 	"github.com/lunajones/apeiron/service/ai/dynamic_context"
+	"github.com/lunajones/apeiron/service/helper/finder"
 )
 
 type MoveIntent struct {
@@ -103,8 +104,7 @@ func (m *MovementController) Update(mov model.Movable, deltaTime float64, ctx *d
 	ctx.ClearClaims(mov.GetHandle())
 
 	// 🌟 Impulso (dodge, etc)
-	if m.updateImpulseMovement(mov) {
-		// log.Printf("[MOVE-UPDATE] [%s] movimento via impulso (esquiva ou similar)", handleStr)
+	if m.updateImpulseMovement(mov, ctx) {
 		return true
 	}
 
@@ -115,23 +115,27 @@ func (m *MovementController) Update(mov model.Movable, deltaTime float64, ctx *d
 	}
 
 	if !m.IsMoving {
-		// log.Printf("[MOVE-UPDATE] [%s] IsMoving = false. Encerrando update", handleStr)
 		m.triedSidestep = false
 		return false
 	}
 
 	dest := m.getCurrentDestination()
-	// log.Printf("[MOVE-UPDATE] [%s] destino atual: (%.2f, %.2f, %.2f)", handleStr, dest.X, dest.Y, dest.Z)
+
+	// ⚠️ Impede invasão de outra entidade no destino
+	targetable, ok := mov.(model.Targetable)
+	if ok && finder.WouldInvadeAnotherEntity(ctx, targetable, mov.GetPosition(), dest) {
+		log.Printf("[MOVE-UPDATE] [%s] destino colidiria com outra entidade. Abortando movimento.", handleStr)
+		m.IsMoving = false
+		return false
+	}
 
 	// Claim da posição de destino
 	if !ctx.ClaimPosition(dest, mov.GetHandle()) {
-		// log.Printf("[MOVE-UPDATE] [%s] célula (%s) já ocupada. Abortando tick.", handleStr, dest.Key())
 		m.IsMoving = false
 		return false
 	}
 
 	if m.checkProximity(mov, dest) {
-		// log.Printf("[MOVE-UPDATE] [%s] já está próximo do destino, encerrando", handleStr)
 		return true
 	}
 
@@ -146,43 +150,51 @@ func (m *MovementController) Update(mov model.Movable, deltaTime float64, ctx *d
 	m.DesiredDirection = dir2D
 	m.Acceleration = dir.Scale(m.Speed)
 
-	// log.Printf("[MOVE-UPDATE] [%s] direção: (%.2f, %.2f), aceleração: (%.2f, %.2f), speed=%.2f",
-	// handleStr, dir.X, dir.Z, m.Acceleration.X, m.Acceleration.Z, m.Speed)
-
 	nearby := ctx.SpatialIndex.Query(mov.GetPosition(), m.calculateSearchRadius(mov))
-	// log.Printf("[MOVE-UPDATE] [%s] checando colisões com %d entidades próximas", handleStr, len(nearby))
-
 	m.WasBlocked = physics.ApplyPhysics(mov, &m.Velocity, m.Acceleration, deltaTime, true, ctx.NavMesh, nearby)
-	// log.Printf("[MOVE-UPDATE] [%s] ApplyPhysics => WasBlocked = %v", handleStr, m.WasBlocked)
 
 	if m.WasBlocked {
-		// log.Printf("[MOVE-UPDATE] [%s] movimento bloqueado. Lidando com bloqueio", handleStr)
 		m.handleBlockedMovement(mov, ctx)
 	}
 
 	m.LastUpdate = time.Now()
-	// log.Printf("[MOVE-UPDATE] [%s] movimento aplicado com sucesso", handleStr)
 	return false
 }
 
-func (m *MovementController) updateImpulseMovement(mov model.Movable) bool {
+func (m *MovementController) updateImpulseMovement(mov model.Movable, ctx *dynamic_context.AIServiceContext) bool {
 	if m.ImpulseState == nil || !m.ImpulseState.Active {
 		return false
 	}
+
 	now := time.Now()
 	elapsed := now.Sub(m.ImpulseState.Start)
 	t := float64(elapsed) / float64(m.ImpulseState.Duration)
 
-	if t >= 1.0 {
-		mov.SetPosition(m.ImpulseState.EndPos)
+	log.Printf("[IMPULSE] movendopor impulso de %+v → %+v", m.ImpulseState.StartPos, m.ImpulseState.EndPos)
 
-		// Ajusta a face final com base em último trecho real
-		dir := position.CalculateDirection2D(m.ImpulseState.StartPos, m.ImpulseState.EndPos)
+	if t >= 1.0 {
+		endPos := m.ImpulseState.EndPos
+
+		// Verifica se posição final é válida
+		if !ctx.NavMesh.IsWalkable(endPos) || !ctx.ClaimPosition(endPos, mov.GetHandle()) {
+			log.Printf("[IMPULSE] [%s] destino final inválido (walkable=%v, claimed=%v)",
+				mov.GetHandle(),
+				ctx.NavMesh.IsWalkable(endPos),
+				!ctx.IsClaimedByOther(endPos, mov.GetHandle()),
+			)
+			m.ImpulseState.Active = false
+			m.ImpulseState = nil
+			return false
+		}
+
+		mov.SetPosition(endPos)
+
+		// Ajusta a face final
+		dir := position.CalculateDirection2D(m.ImpulseState.StartPos, endPos)
 		if dir.Length() > 0.01 {
 			mov.SetTorsoDirection(dir)
 		}
 
-		// ✅ Marca como desativado explicitamente
 		m.ImpulseState.Active = false
 		m.ImpulseState = nil
 		return true
@@ -190,10 +202,23 @@ func (m *MovementController) updateImpulseMovement(mov model.Movable) bool {
 
 	// 🟡 Atualiza posição intermediária
 	newPos := m.ImpulseState.StartPos.LerpTo(m.ImpulseState.EndPos, t)
+
+	// Valida antes de aplicar a posição
+	if !ctx.NavMesh.IsWalkable(newPos) || !ctx.ClaimPosition(newPos, mov.GetHandle()) {
+		log.Printf("[IMPULSE] [%s] destino intermediário inválido (walkable=%v, claimed=%v)",
+			mov.GetHandle(),
+			ctx.NavMesh.IsWalkable(newPos),
+			!ctx.IsClaimedByOther(newPos, mov.GetHandle()),
+		)
+		m.ImpulseState.Active = false
+		m.ImpulseState = nil
+		return false
+	}
+
 	oldPos := mov.GetPosition()
 	mov.SetPosition(newPos)
 
-	// 🟡 Ajusta a face dinâmica: de onde estava → onde chegou agora
+	// Ajusta face
 	dir := position.CalculateDirection2D(oldPos, newPos)
 	if dir.Length() > 0.01 {
 		mov.SetTorsoDirection(dir)
@@ -206,21 +231,21 @@ func (m *MovementController) applyMoveIntent(mov model.Movable, ctx *dynamic_con
 	if !m.Intent.HasIntent {
 		return false
 	}
-	// log.Printf("[MOVE-CTRL] [%s] HasIntent = true. Dest: (%.2f, %.2f)", mov.GetHandle().String(), m.Intent.TargetPosition.X, m.Intent.TargetPosition.Z)
+	log.Printf("[MOVE-CTRL] [%s] HasIntent = true. Dest: (%.2f, %.2f)", mov.GetHandle().String(), m.Intent.TargetPosition.X, m.Intent.TargetPosition.Z)
 
 	m.SetMoveTarget(m.Intent.TargetPosition, m.Intent.Speed, m.Intent.StopDistance)
 	m.Intent.HasIntent = false
 
-	// log.Printf("[MOVE-CTRL] [%s] SetTarget para (%.2f, %.2f) com speed=%.2f, stop=%.2f",
-	// mov.GetHandle().String(), m.TargetPosition.X, m.TargetPosition.Z, m.Speed, m.StopDistance)
+	log.Printf("[MOVE-CTRL] [%s] SetTarget para (%.2f, %.2f) com speed=%.2f, stop=%.2f",
+		mov.GetHandle().String(), m.TargetPosition.X, m.TargetPosition.Z, m.Speed, m.StopDistance)
 
 	path := ctx.NavMesh.FindPath(mov.GetPosition(), m.TargetPosition)
 	m.LastRepath = time.Now()
 	if len(path) > 0 {
-		// log.Printf("[MOVE-CTRL] [%s] Caminho encontrado com %d pontos", mov.GetHandle().String(), len(path))
+		log.Printf("[MOVE-CTRL] [%s] Caminho encontrado com %d pontos", mov.GetHandle().String(), len(path))
 		m.SetPath(path, mov)
 	} else {
-		// log.Printf("[MOVE-CTRL] [%s] Caminho NÃO encontrado para o alvo!", mov.GetHandle().String())
+		log.Printf("[MOVE-CTRL] [%s] Caminho NÃO encontrado para o alvo!", mov.GetHandle().String())
 		m.IsMoving = true
 	}
 	return true
@@ -363,7 +388,12 @@ func (m *MovementController) Stop() {
 	m.MovementPlan = nil
 }
 
-func (m *MovementController) SetImpulseMovement(current position.Position, dest position.Position, duration time.Duration) {
+func (m *MovementController) SetImpulseMovement(current position.Position, dest position.Position, duration time.Duration, ctx *dynamic_context.AIServiceContext, entityName string) {
+	if !ctx.NavMesh.IsWalkable(dest) {
+		log.Printf("[IMPULSE] destino não andável para %s: %+v", entityName, dest)
+		return
+	}
+
 	m.ImpulseState = &ImpulseMovementState{
 		Active:   true,
 		Start:    time.Now(),
@@ -374,6 +404,8 @@ func (m *MovementController) SetImpulseMovement(current position.Position, dest 
 	m.IsMoving = false
 	m.CurrentPath = nil
 	m.PathIndex = 0
+
+	log.Printf("[IMPULSE] impulso iniciado para %s: %+v → %+v (dur=%v)", entityName, current, dest, duration)
 }
 
 func (p *MovementPlan) IsActive() bool {
@@ -385,11 +417,22 @@ func (p *MovementPlan) Is(planType consts.MovementPlanType) bool {
 }
 
 func (m *MovementController) HasArrived(mov model.Movable) bool {
-	dest := m.getCurrentDestination()
-	return m.checkProximity(mov, dest)
+	dest := m.TargetPosition
+	dist := position.CalculateDistance2D(mov.GetPosition(), dest)
+
+	// log.Printf("[HAS-ARRIVED] [%s] posição atual: (%.2f, %.2f) | destino: (%.2f, %.2f) | distância: %.2f | StopDistance: %.2f | Arrived: %s",
+	// 	mov.GetHandle().String(),
+	// 	mov.GetPosition().X, mov.GetPosition().Z,
+	// 	dest.X, dest.Z,
+	// 	dist,
+	// 	m.StopDistance,
+	// 	dist < m.StopDistance,
+	// )
+
+	return dist < m.StopDistance
 }
 
-func (m *MovementController) ForceImpulseAwayFromTarget(distance float64) {
+func (m *MovementController) ForceImpulseAwayFromTarget(distance float64, ctx *dynamic_context.AIServiceContext, entityName string) {
 	current := m.CurrentIntentDest
 	origin := m.TargetPosition
 	dir := position.CalculateDirection2D(origin, current)
@@ -400,9 +443,12 @@ func (m *MovementController) ForceImpulseAwayFromTarget(distance float64) {
 	dir = dir.Normalize()
 	dest := current.AddOffset(dir.X*distance, dir.Z*distance)
 
-	m.SetImpulseMovement(current, dest, 250*time.Millisecond)
+	m.SetImpulseMovement(current, dest, 250*time.Millisecond, ctx, entityName)
+
 }
 
 func (m *MovementController) IsImpulsing() bool {
+	// log.Printf("[IMPULSE] aplicando movimento de impulso de %+v → %+v", m.ImpulseState.StartPos, m.ImpulseState.EndPos)
+
 	return m.ImpulseState != nil && m.ImpulseState.Active
 }

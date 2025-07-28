@@ -19,6 +19,8 @@ func (n *ChaseUntilInRangeNode) Tick(c *creature.Creature, ctx interface{}) inte
 	drive := c.GetCombatDrive()
 
 	if c.IsDodging() || c.CombatState != constslib.CombatStateMoving {
+		color.Yellow("[CHASE-IN-RANGE] [%s] Caution insuficiente (%.2f), ignorando perseguição", c.GetPrimaryType(), drive.Caution)
+
 		return core.StatusFailure
 	}
 

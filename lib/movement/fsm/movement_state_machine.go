@@ -30,14 +30,18 @@ type MovementFSM interface {
 
 // Callbacks para ações externas
 type FSMHooks struct {
-	OnClearIntent      func()
-	OnSetAnimation     func(state constslib.AnimationState)
-	OnKnockbackImpulse func()
-	OnIsCasting        func() bool // 🔹 AQUI
-	OnHasArrived       func() bool
-	OnIsDodging        func() bool
-	OnSetImpulse       func(state *movement.ImpulseMovementState)
-	OnShouldWalk       func() bool
+	OnClearIntent           func()
+	OnSetAnimation          func(constslib.AnimationState)
+	OnKnockbackImpulse      func()
+	OnSelfSeparationImpulse func()
+	OnShouldSelfSeparate    func() bool
+	OnHasArrived            func() bool
+	OnIsDodging             func() bool
+	OnSetImpulse            func(state *movement.ImpulseMovementState)
+	OnShouldWalk            func() bool
+	OnIsCasting             func() bool
+	GetSkillMovementState   func() *model.SkillMovementState
+	OnPreWalkingCheck       func() bool
 }
 
 // MovementStateMachine é a implementação concreta
@@ -76,6 +80,7 @@ func (fsm *MovementStateMachine) Enter(state MovementState) {
 
 	switch state {
 	case MovementStateIdle:
+
 		if fsm.hooks.OnClearIntent != nil {
 			fsm.hooks.OnClearIntent()
 		}
@@ -84,6 +89,13 @@ func (fsm *MovementStateMachine) Enter(state MovementState) {
 		}
 
 	case MovementStateWalking:
+
+		if fsm.hooks.OnPreWalkingCheck != nil && !fsm.hooks.OnPreWalkingCheck() {
+			log.Printf("[FSM-MOVEMENT] impedido por OnPreWalkingCheck — rota cancelada")
+			fsm.hooks.OnClearIntent()
+			return
+		}
+
 		if fsm.hooks.OnIsCasting != nil && fsm.hooks.OnIsCasting() {
 			fsm.Enter(MovementStateIdle)
 			return
@@ -104,6 +116,39 @@ func (fsm *MovementStateMachine) Enter(state MovementState) {
 
 func (fsm *MovementStateMachine) Tick(deltaTime float64) {
 	switch fsm.state {
+	case MovementStateIdle:
+		if fsm.hooks.OnShouldWalk != nil && fsm.hooks.OnShouldWalk() {
+			fsm.Enter(MovementStateWalking)
+		}
+
+		if fsm.hooks.OnShouldSelfSeparate != nil && fsm.hooks.OnShouldSelfSeparate() {
+			if fsm.hooks.OnSelfSeparationImpulse != nil {
+				log.Printf("[FSM] aplicando impulso de separação")
+				fsm.hooks.OnSelfSeparationImpulse()
+			}
+		}
+
+		if fsm.hooks.OnIsCasting != nil && fsm.hooks.OnIsCasting() {
+			if fsm.hooks.GetSkillMovementState() != nil && fsm.hooks.GetSkillMovementState().Active {
+				log.Printf("[FSM] impedido de separar — movimento de skill ativo")
+				break
+			}
+
+		}
+
+	case MovementStateWalking:
+
+		if fsm.hooks.OnShouldSelfSeparate != nil && fsm.hooks.OnShouldSelfSeparate() {
+			if fsm.hooks.OnSelfSeparationImpulse != nil {
+				log.Printf("[FSM] aplicando impulso de separação")
+				fsm.hooks.OnSelfSeparationImpulse()
+			}
+		}
+
+		if fsm.hooks.OnHasArrived != nil && fsm.hooks.OnHasArrived() {
+			fsm.Enter(MovementStateIdle)
+		}
+
 	case MovementStateDodging:
 		if fsm.hooks.OnIsDodging != nil && !fsm.hooks.OnIsDodging() {
 			if fsm.hooks.OnShouldWalk != nil && fsm.hooks.OnShouldWalk() {
@@ -112,38 +157,17 @@ func (fsm *MovementStateMachine) Tick(deltaTime float64) {
 				fsm.Enter(MovementStateIdle)
 			}
 		}
+
 	case MovementStateKnockback:
 		if time.Since(fsm.enteredAt) > 1*time.Second {
 			fsm.Enter(MovementStateIdle)
 		}
-
-	case MovementStateWalking:
-		if fsm.hooks.OnHasArrived != nil && fsm.hooks.OnHasArrived() {
-			fsm.Enter(MovementStateIdle)
-		}
-	}
-}
-
-// String retorna o nome do estado para debug
-func (s MovementState) String() string {
-	switch s {
-	case MovementStateIdle:
-		return "IDLE"
-	case MovementStateWalking:
-		return "WALKING"
-	case MovementStateDodging:
-		return "DODGING"
-	case MovementStateKnockback:
-		return "KNOCKBACK"
-	default:
-		return "UNKNOWN"
 	}
 }
 
 func (fsm *MovementStateMachine) EnterDodgingState(mov model.Movable, dest position.Position, dir position.Vector2D, e model.CombatEvent) {
 	now := time.Now()
 
-	// Ativa impulso
 	if fsm.hooks.OnSetImpulse != nil {
 		fsm.hooks.OnSetImpulse(&movement.ImpulseMovementState{
 			Active:   true,
@@ -164,4 +188,20 @@ func (fsm *MovementStateMachine) EnterDodgingState(mov model.Movable, dest posit
 	mov.SetDodgeStartedAt(now)
 
 	fsm.Enter(MovementStateDodging)
+}
+
+// String retorna o nome do estado para debug
+func (s MovementState) String() string {
+	switch s {
+	case MovementStateIdle:
+		return "IDLE"
+	case MovementStateWalking:
+		return "WALKING"
+	case MovementStateDodging:
+		return "DODGING"
+	case MovementStateKnockback:
+		return "KNOCKBACK"
+	default:
+		return "UNKNOWN"
+	}
 }

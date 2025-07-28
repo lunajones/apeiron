@@ -114,7 +114,7 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 			constslib.Skill1: &model.SkillState{},
 			constslib.Skill2: &model.SkillState{},
 			constslib.Skill3: &model.SkillState{},
-			// constslib.Skill4: &model.SkillState{},
+			constslib.Skill4: &model.SkillState{},
 			// constslib.Skill5: &model.SkillState{},
 		},
 		AggroTable: make(map[handle.EntityHandle]*aggro.AggroEntry),
@@ -257,7 +257,7 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 
 			// DEFENSIVO — só roda se distância < 3.0 e não estiver se movendo
 			core.NewSelectorNode(
-				&helper.OnlyIfCloseAndNotMovingNode{Node: &offensive.GetApproachNodeForTagNode{}},
+				// &helper.OnlyIfCloseAndNotMovingNode{Node: &offensive.GetApproachNodeForTagNode{}},
 				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.MicroRetreatNode{}},
 				&helper.OnlyIfCloseAndNotMovingNode{Node: &defensive.CircleAroundTargetNode{}},
 			),

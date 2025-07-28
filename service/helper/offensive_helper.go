@@ -33,6 +33,7 @@ func FindBestOffensiveSkill(c *creature.Creature, svcCtx *dynamic_context.AIServ
 		}
 		state := c.SkillStates[skill.Action]
 		if state == nil || now.Before(state.CooldownUntil) {
+			log.Printf("[PLAN-BEST-SKILL] pulando %s — cooldown ativo até %.2fs", skill.Name, state.CooldownUntil.Sub(now).Seconds())
 			continue
 		}
 		if skill.Conditions != nil && !ValidateSkillConditions(c, skill) {

@@ -85,11 +85,6 @@ func (n *CircleAroundTargetNode) executeCircle(c *creature.Creature, target mode
 
 	c.AddRecentAction(constslib.CombatActionCircleAround)
 
-	if !finder.IsInFieldOfView(target, c, 100.0) {
-		color.Green("[CIRCLE] [%s] pronto para atacar — fora do cone", c.PrimaryType)
-		return core.StatusSuccess
-	}
-
 	dirVec := position.NewVector2DFromTo(c.GetPosition(), target.GetPosition()).Normalize()
 	angle := rand.Float64()*1.5708 - 0.7854 // ±45°
 	perp := position.RotateVector2D(dirVec, angle).Normalize()
@@ -99,6 +94,11 @@ func (n *CircleAroundTargetNode) executeCircle(c *creature.Creature, target mode
 	finalDist := position.CalculateDistance(c.GetPosition(), moveTo)
 	if finalDist < 2.9 {
 		color.HiRed("[CIRCLE] [%s] destino muito próximo (%.2f)", c.PrimaryType, finalDist)
+		return core.StatusFailure
+	}
+
+	if finder.WouldInvadeAnotherEntity(svcCtx, c, c.GetPosition(), moveTo) {
+		color.HiRed("[CIRCLE] [%s] rota bloqueada por entidade no caminho", c.PrimaryType)
 		return core.StatusFailure
 	}
 

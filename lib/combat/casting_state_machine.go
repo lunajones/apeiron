@@ -77,6 +77,11 @@ func (fsm *CastingStateMachine) Process(skill *model.Skill, svcCtx *dynamic_cont
 	// CAST
 	if !state.CastFired {
 		fmt.Printf("\033[38;5;51m[CAST-FSM] [%s] Iniciando CAST para skill %s\033[0m\n", c.GetPrimaryType(), skill.Name)
+		state.CooldownUntil = now.Add(time.Duration(skill.CooldownSec * float64(time.Second)))
+
+		if skill.Movement != nil && c.GetSkillMovementState() == nil {
+			c.SetSkillMovementState(ApplySkillMovement(c, fsm.target, skill))
+		}
 
 		if rand.Float64() < 0.5 {
 			c.AddRecentAction(consts.CombatActionHesitatedAttack)
@@ -126,12 +131,7 @@ func (fsm *CastingStateMachine) Process(skill *model.Skill, svcCtx *dynamic_cont
 
 		UseSkill(c, fsm.target, fsm.target.GetPosition(), skill, nil, nil, svcCtx.NavMesh, svcCtx)
 
-		if skill.Movement != nil && c.GetSkillMovementState() == nil {
-			c.SetSkillMovementState(ApplySkillMovement(c, fsm.target, skill))
-		}
-
 		state.RecoveryUntil = now.Add(time.Duration(skill.RecoveryTime * float64(time.Second)))
-		state.CooldownUntil = now.Add(time.Duration(skill.CooldownSec * float64(time.Second)))
 		state.RecoveryFired = true
 
 		c.SetAnimationState(consts.AnimationRecovery)

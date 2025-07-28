@@ -34,17 +34,6 @@ func UseSkill(
 		attacker.SetFacingDirection(dir.Normalize())
 	}
 
-	// ⚡ Movimento (Leap, Dash, etc)
-	if skill.Movement != nil {
-		if target != nil {
-			attacker.SetSkillMovementState(ApplySkillMovement(attacker, target, skill))
-		} else {
-			log.Printf("[SkillExecutor] [%s] Skill %s possui movimento, mas target é nil", attacker.GetHandle().ID, skill.Name)
-		}
-		result.Success = true
-		return result
-	}
-
 	// 🌀 Área no chão (Ground AOE)
 	if skill.GroundTargeted && skill.AOE != nil {
 		ApplyAOEDamage(attacker, targetPos, skill, creatures, players, svcCtx)
@@ -79,18 +68,18 @@ func ApplySkillMovement(
 	if skill.Movement.ExtraDistance != 0 {
 		targetPosAdjusted = attacker.GetPosition().AddVector3D(dirVec.Scale(skill.Movement.ExtraDistance))
 	} else {
-		creatureHitbox := attacker.GetHitboxRadius()
-		targetHitbox := target.GetHitboxRadius()
-		buffer := target.GetDesiredBufferDistance()
+		// creatureHitbox := attacker.GetHitboxRadius()
+		// targetHitbox := target.GetHitboxRadius()
+		// buffer := target.GetDesiredBufferDistance()
 
-		distance := position.CalculateDistance2D(attacker.GetPosition(), target.GetPosition())
-		desiredDistance := distance + creatureHitbox + targetHitbox + buffer
+		// distance := position.CalculateDistance2D(attacker.GetPosition(), target.GetPosition())
+		// desiredDistance := distance + creatureHitbox + targetHitbox + buffer
 
-		if desiredDistance > skill.Movement.MaxDistance {
-			desiredDistance = skill.Movement.MaxDistance
-		}
+		// if desiredDistance > skill.Movement.MaxDistance {
+		// 	desiredDistance = skill.Movement.MaxDistance
+		// }
 
-		targetPosAdjusted = attacker.GetPosition().AddVector3D(dirVec.Scale(desiredDistance))
+		targetPosAdjusted = attacker.GetPosition().AddVector3D(dirVec.Scale(skill.Movement.MaxDistance))
 	}
 
 	finalDir := position.NewVector3DFromTo(attacker.GetPosition(), targetPosAdjusted).Normalize()
@@ -190,7 +179,6 @@ func UpdateSkillMovement(
 	// 💨 Empurra o alvo engatado continuamente durante o movimento
 	if state.Config.PushTargetDuringMovement && state.EngagedTarget != nil && state.EngagedTarget.IsAlive() {
 		// Ativa empurrão inicial
-		state.EngagedTarget.ApplyImpulseFrom(mov.GetPosition(), 300*time.Millisecond)
 
 		// Corrige sobreposição contínua enquanto se move
 		dist := position.CalculateDistance2D(mov.GetPosition(), state.EngagedTarget.GetPosition())
@@ -219,6 +207,14 @@ func UpdateSkillMovement(
 					other.GetHandle().ID,
 					state.Skill.Name,
 				)
+			}
+		}
+
+		// 💥 Empurra o alvo colado ao final do movimento
+		if state.EngagedTarget != nil && state.EngagedTarget.IsAlive() {
+			dist := position.CalculateDistance2D(mov.GetPosition(), state.EngagedTarget.GetPosition())
+			if dist < 0.5 {
+				state.EngagedTarget.ApplyImpulseFrom(mov.GetPosition(), 300*time.Millisecond)
 			}
 		}
 

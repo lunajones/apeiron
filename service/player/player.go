@@ -10,6 +10,7 @@ import (
 	"github.com/lunajones/apeiron/lib/model"
 	"github.com/lunajones/apeiron/lib/movement"
 	"github.com/lunajones/apeiron/lib/position"
+	"github.com/lunajones/apeiron/service/ai/dynamic_context"
 	creatureconsts "github.com/lunajones/apeiron/service/creature/consts"
 	"github.com/lunajones/apeiron/service/npc"
 	"github.com/lunajones/apeiron/service/player/consts"
@@ -64,6 +65,8 @@ type Player struct {
 
 	combatEvents []model.CombatEvent
 	MoveCtrl     *movement.MovementController
+
+	context *dynamic_context.AIServiceContext
 }
 
 func (p *Player) InitNeeds() {
@@ -266,5 +269,13 @@ func (p *Player) ApplyImpulseFrom(from position.Position, duration time.Duration
 	dist := position.CalculateDistance2D(from, p.Position)
 	dest := from.AddOffset(dir.X*dist, dir.Z*dist)
 
-	p.MoveCtrl.SetImpulseMovement(from, dest, duration)
+	p.MoveCtrl.SetImpulseMovement(from, dest, duration, p.GetContext(), "")
+}
+
+func (p *Player) SetContext(ctx *dynamic_context.AIServiceContext) {
+	p.context = ctx
+}
+
+func (p *Player) GetContext() *dynamic_context.AIServiceContext {
+	return p.context
 }
