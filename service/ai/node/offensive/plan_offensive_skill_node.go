@@ -64,10 +64,21 @@ func (n *PlanOffensiveSkillNode) Tick(c *creature.Creature, ctx interface{}) int
 	c.AddRecentAction(constslib.CombatActionAttackPrepared)
 
 	// 🔍 Busca melhor skill
+	// 🔍 Busca melhor skill
 	bestSkill := helper.FindBestOffensiveSkill(c, svcCtx, time.Now())
 	if bestSkill == nil {
 		log.Printf("[PLAN-OFFENSIVE] [%s] nenhuma skill disponível", c.GetPrimaryType())
 		return core.StatusFailure
+	}
+
+	// 🕒 Loga cooldown restante da skill escolhida
+	state := c.SkillStates[bestSkill.Action]
+	if state != nil {
+		log.Printf("[PLAN-OFFENSIVE] [%s] SKILL ESCOLHIDA: %s — cooldown restante: %.2fs",
+			c.GetPrimaryType(),
+			bestSkill.Name,
+			state.CooldownUntil.Sub(time.Now()).Seconds(),
+		)
 	}
 
 	c.NextSkillToUse = bestSkill
@@ -78,6 +89,7 @@ func (n *PlanOffensiveSkillNode) Tick(c *creature.Creature, ctx interface{}) int
 
 	color.Red("[PLAN-OFFENSIVE] [%s] Planejada skill: %s", c.GetPrimaryType(), bestSkill.Name)
 	return core.StatusSuccess
+
 }
 
 func (n *PlanOffensiveSkillNode) Reset(c *creature.Creature) {

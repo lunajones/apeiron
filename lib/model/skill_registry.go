@@ -21,10 +21,10 @@ func InitSkills() {
 		SkillType:         "Physical",
 		InitialMultiplier: 1.0,
 		Range:             2.2,
-		CooldownSec:       0.6,
+		CooldownSec:       1.2,
 		WindUpTime:        0.1,
 		CastTime:          0.6,
-		RecoveryTime:      0.6,
+		RecoveryTime:      1.2,
 		Interruptible:     true,
 		Impact: &ImpactEffect{
 			PostureDamage:     5,
@@ -77,7 +77,7 @@ func InitSkills() {
 		SkillType:         "Physical",
 		InitialMultiplier: 1.5,
 		Range:             3.0,
-		CooldownSec:       6.0,
+		CooldownSec:       34.0,
 		WindUpTime:        0.4,
 		CastTime:          0.4,
 		RecoveryTime:      0.3,
@@ -105,11 +105,11 @@ func InitSkills() {
 		Tags:              NewSkillTags("Rush", "Burst"),
 		Action:            constslib.Skill3,
 		SkillType:         "Physical",
-		InitialMultiplier: 1.3,
+		InitialMultiplier: 0.1,
 		Range:             3.0,
-		CooldownSec:       4.0,
-		WindUpTime:        0.3,
-		CastTime:          0.3,
+		CooldownSec:       7.0,
+		WindUpTime:        0.4,
+		CastTime:          0.2,
 		RecoveryTime:      0.2,
 		Interruptible:     true,
 		Impact: &ImpactEffect{
@@ -203,10 +203,10 @@ func InitSkills() {
 		SkillType:         "Physical",
 		InitialMultiplier: 0.8,
 		Range:             2.2,
-		CooldownSec:       1.1,
+		CooldownSec:       1.4,
 		WindUpTime:        1.0,
 		CastTime:          0.4,
-		RecoveryTime:      1.1,
+		RecoveryTime:      1.4,
 		Interruptible:     true,
 		Impact: &ImpactEffect{
 			PostureDamage:     4,
@@ -231,7 +231,7 @@ func InitSkills() {
 		SkillType:         "Physical",
 		InitialMultiplier: 1.0,
 		Range:             2.5,
-		CooldownSec:       6.0,
+		CooldownSec:       17.0,
 		WindUpTime:        0.6,
 		CastTime:          0.5,
 		RecoveryTime:      1.4,
@@ -305,6 +305,92 @@ func InitSkills() {
 			Length: 5.0,
 			Width:  1.4,
 		},
+	}
+
+	// ===== ARCHER SKILLS =====
+
+	SkillRegistry["ArcherBasicShot"] = &Skill{
+		ID:                "ArcherBasicShot",
+		Name:              "ArcherBasicShot",
+		Action:            constslib.Basic,
+		Tags:              NewSkillTags("Ranged"),
+		SkillType:         "Physical",
+		InitialMultiplier: 1.0,
+		Range:             8.0,
+		CooldownSec:       1.2,
+		WindUpTime:        0.3,
+		CastTime:          0.2,
+		RecoveryTime:      0.4,
+		Interruptible:     true,
+		Impact: &ImpactEffect{
+			PostureDamage:     4,
+			ScalingStat:       "Dexterity",
+			ScalingMultiplier: 0.08,
+			DefenseStat:       "RangedDefense",
+		},
+		ScoreBase: 3.0,
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxLine,
+			Length: 8.0,
+			Width:  0.3,
+		},
+	}
+
+	SkillRegistry["ArcherPowerShot"] = &Skill{
+		ID:                "ArcherPowerShot",
+		Name:              "ArcherPowerShot",
+		Action:            constslib.Skill1,
+		Tags:              NewSkillTags("Ranged", "Burst", "Interrupt"),
+		SkillType:         "Physical",
+		InitialMultiplier: 1.6,
+		Range:             8.0,
+		CooldownSec:       6.0,
+		WindUpTime:        1.0,
+		CastTime:          0.3,
+		RecoveryTime:      0.7,
+		Interruptible:     false,
+		Impact: &ImpactEffect{
+			PostureDamage:     25,
+			ScalingStat:       "Dexterity",
+			ScalingMultiplier: 0.15,
+			DefenseStat:       "RangedDefense",
+		},
+		ScoreBase: 6.0,
+		Hitbox: &HitboxConfig{
+			Shape:  HitboxLine,
+			Length: 8.0,
+			Width:  0.4,
+		},
+	}
+
+	SkillRegistry["ArcherMarkForAggression"] = &Skill{
+		ID:            "ArcherMarkForAggression",
+		Name:          "ArcherMarkForAggression",
+		Action:        constslib.Skill2,
+		Tags:          NewSkillTags("Ranged", "Command", "Tactical"),
+		SkillType:     "Tactical",
+		Range:         10.0,
+		CooldownSec:   12.0,
+		WindUpTime:    0.6,
+		CastTime:      0.3,
+		RecoveryTime:  0.3,
+		Interruptible: true,
+		ScoreBase:     4.5,
+	}
+
+	SkillRegistry["ArcherMarkForDefense"] = &Skill{
+		ID:            "ArcherMarkForDefense",
+		Name:          "ArcherMarkForDefense",
+		Action:        constslib.Skill3,
+		Tags:          NewSkillTags("Ranged", "Command", "Defensive"),
+		SkillType:     "Tactical",
+		Range:         10.0,
+		CooldownSec:   14.0,
+		WindUpTime:    0.6,
+		CastTime:      0.3,
+		RecoveryTime:  0.3,
+		Interruptible: true,
+		ScoreBase:     4.0,
 	}
 
 	log.Println("[Skill Registry] finishing system...")

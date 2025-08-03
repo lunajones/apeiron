@@ -46,7 +46,7 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 		TargetCreatureHandle: handle.EntityHandle{},
 		TargetPlayerHandle:   handle.EntityHandle{},
 
-		PrimaryType: consts.Human,
+		PrimaryType: consts.ChineseSoldier,
 		Types:       []consts.CreatureType{consts.Human, consts.Soldier},
 		HP:          250,
 		Alive:       true,
@@ -103,10 +103,10 @@ func NewChineseSoldier(spawnPoint position.Position, spawnRadius float64, ctx *d
 		MaxBlockDuration:   3 * time.Second,
 
 		RegisteredSkills: []*model.Skill{
-			// model.SkillRegistry["SoldierSlash"],
-			// model.SkillRegistry["SoldierShieldBash"],
-			// model.SkillRegistry["SoldierGroundSlam"],
-			// model.SkillRegistry["SoldierLongStep"],
+			model.SkillRegistry["SoldierSlash"],
+			model.SkillRegistry["SoldierShieldBash"],
+			model.SkillRegistry["SoldierGroundSlam"],
+			model.SkillRegistry["SoldierLongStep"],
 			model.SkillRegistry["SoldierShieldRush"],
 		},
 		SkillStates: map[constslib.SkillAction]*model.SkillState{

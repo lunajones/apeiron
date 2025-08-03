@@ -272,7 +272,7 @@ func (c *Creature) Tick(ctx *dynamic_context.AIServiceContext, deltaTime float64
 			Skill:    skill,
 			State:    c.SkillStates[skill.Action],
 			Now:      time.Now(),
-			Allies:   finder.FindNearbyAllies(ctx, c, c.GetFaction(), 8.0),
+			Allies:   finder.FindNearbyAllies(ctx, c, 8.0),
 		}, ctx)
 	}
 
@@ -1776,3 +1776,28 @@ func (c *Creature) ApplyImpulseFrom(from position.Position, duration time.Durati
 
 	c.MoveCtrl.SetImpulseMovement(from, dest, duration, c.GetContext(), c.GetPrimaryType())
 }
+
+// func (c *Creature) ApplyMarkForAggression() {
+// 	target := c.GetCurrentTarget(c.GetContext())
+// 	if target == nil || !target.IsAlive() {
+// 		return
+// 	}
+
+// 	allies := finder.FindNearbyAllies(c, 10.0)
+// 	for _, ally := range allies {
+// 		if ally == nil || ally.GetHandle().Equals(c.Handle) {
+// 			continue
+// 		}
+
+// 		creatureAlly, ok := ally.(*Creature)
+// 		if !ok || !creatureAlly.IsAlive() {
+// 			continue
+// 		}
+
+// 		creatureAlly.GetCombatDrive().Rage += 0.5
+// 		creatureAlly.GetCombatDrive().Counter += 0.2
+// 		creatureAlly.GetCombatDrive().Caution -= 0.3
+// 		creatureAlly.SetTarget(target)
+// 		break
+// 	}
+// }

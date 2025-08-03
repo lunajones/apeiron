@@ -77,7 +77,7 @@ func (fsm *CastingStateMachine) Process(skill *model.Skill, svcCtx *dynamic_cont
 	// CAST
 	if !state.CastFired {
 		fmt.Printf("\033[38;5;51m[CAST-FSM] [%s] Iniciando CAST para skill %s\033[0m\n", c.GetPrimaryType(), skill.Name)
-		state.CooldownUntil = now.Add(time.Duration(skill.CooldownSec * float64(time.Second)))
+		state.CooldownUntil = now.Add(time.Duration(skill.CooldownSec*1000) * time.Millisecond)
 
 		if skill.Movement != nil && c.GetSkillMovementState() == nil {
 			c.SetSkillMovementState(ApplySkillMovement(c, fsm.target, skill))
@@ -101,7 +101,7 @@ func (fsm *CastingStateMachine) Process(skill *model.Skill, svcCtx *dynamic_cont
 			}
 		}
 
-		allies := finder.FindNearbyAllies(svcCtx, c, c.GetFaction(), 8.0)
+		allies := finder.FindNearbyAllies(svcCtx, c, 8.0)
 		for _, ally := range allies {
 			if ally != nil && ally.GetHandle() != c.GetHandle() && ally.GetCombatDrive().Termination > 0.6 {
 				break

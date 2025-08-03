@@ -15,16 +15,18 @@ const AnyType CreatureType = "Any"
 type CreatureType string
 
 const (
-	Zombie    CreatureType = "Zombie"
-	Spider    CreatureType = "Spider"
-	Wolf      CreatureType = "Wolf"
-	Acolyte   CreatureType = "Acolyte"
-	Rabbit    CreatureType = "Rabbit"
-	Human     CreatureType = "Human"
-	Soldier   CreatureType = "Soldier"
-	Victim    CreatureType = "Victim"
-	Concubine CreatureType = "Concubine"
-	Slave     CreatureType = "Slave"
+	Zombie         CreatureType = "Zombie"
+	Spider         CreatureType = "Spider"
+	Wolf           CreatureType = "Wolf"
+	Acolyte        CreatureType = "Acolyte"
+	Rabbit         CreatureType = "Rabbit"
+	Human          CreatureType = "Human"
+	ChineseSoldier CreatureType = "Chinese Soldier"
+	ChineseArcher  CreatureType = "Chinese Archer"
+	Soldier        CreatureType = "Soldier"
+	Victim         CreatureType = "Victim"
+	Concubine      CreatureType = "Concubine"
+	Slave          CreatureType = "Slave"
 )
 
 type Role string

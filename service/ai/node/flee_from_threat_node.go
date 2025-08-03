@@ -67,9 +67,9 @@ func (n *FleeFromThreatNode) Tick(c *creature.Creature, ctx interface{}) interfa
 
 	path := svcCtx.NavMesh.FindPath(c.Position, newPos)
 	if len(path) == 0 {
-		closestPoly := svcCtx.NavMesh.FindClosestPolygon(c.Position)
+		closestPoly := svcCtx.NavMesh.FindClosestPolygonByGrid(c.Position)
 		if closestPoly != nil {
-			center := closestPoly.CenterPosition()
+			center := closestPoly.GetCenterPosition()
 			path = svcCtx.NavMesh.FindPath(c.Position, center)
 		}
 	}

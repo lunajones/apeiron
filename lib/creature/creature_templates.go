@@ -10,6 +10,7 @@ import (
 var templateRegistry = map[int]func(position.Position, float64, *dynamic_context.AIServiceContext) *creature.Creature{
 	1001: mob.NewChineseSoldier,
 	1002: mob.NewSteppeWolf,
+	1003: mob.NewChineseArcher,
 	1006: mob.NewMountainRabbit,
 }
 

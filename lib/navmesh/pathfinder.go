@@ -116,7 +116,7 @@ func (mesh *NavMesh) FindPath(start, end position.Position, opts ...PathOption) 
 				continue
 			}
 
-			center := neighborPoly.centerPosition()
+			center := neighborPoly.GetCenterPosition()
 			gCost := current.GCost + heuristicCost(current.Pos, center, settings)
 
 			if areaCost, ok := settings.CostModifiers[neighborPoly.AreaType]; ok {
@@ -155,7 +155,7 @@ func isPolyAllowed(fromPos position.Position, poly *Polygon, settings *PathSetti
 		return false
 	}
 	if settings.ConsiderHeight {
-		if math.Abs(fromPos.Y-poly.centerPosition().Y) > settings.MaxHeightDiff {
+		if math.Abs(fromPos.Y-poly.Y) > settings.MaxHeightDiff {
 			return false
 		}
 	}
@@ -176,7 +176,7 @@ func heuristicCost(a, b position.Position, settings *PathSettings) float64 {
 func (mesh *NavMesh) getPolygonByID(id int) *Polygon {
 	for i := range mesh.Polygons {
 		if mesh.Polygons[i].ID == id {
-			return &mesh.Polygons[i]
+			return mesh.Polygons[i]
 		}
 	}
 	return nil
@@ -185,38 +185,25 @@ func (mesh *NavMesh) getPolygonByID(id int) *Polygon {
 func (mesh *NavMesh) findContainingPolygon(pos position.Position) *Polygon {
 	for i := range mesh.Polygons {
 		if pointInPolygonXZ(pos, mesh.Polygons[i]) {
-			return &mesh.Polygons[i]
+			return mesh.Polygons[i]
 		}
 	}
 	return nil
 }
 
-func pointInPolygonXZ(pos position.Position, poly Polygon) bool {
+func pointInPolygonXZ(pos position.Position, poly *Polygon) bool {
+	vertices := poly.GetVertices()
 	count := 0
-	n := len(poly.Vertices)
+	n := len(vertices)
 	for i := 0; i < n; i++ {
-		v1 := poly.Vertices[i]
-		v2 := poly.Vertices[(i+1)%n]
+		v1 := vertices[i]
+		v2 := vertices[(i+1)%n]
 		if ((v1.Z > pos.Z) != (v2.Z > pos.Z)) &&
 			(pos.X < (v2.X-v1.X)*(pos.Z-v1.Z)/(v2.Z-v1.Z)+v1.X) {
 			count++
 		}
 	}
 	return count%2 == 1
-}
-
-func (poly *Polygon) centerPosition() position.Position {
-	var sumX, sumZ float64
-	for _, v := range poly.Vertices {
-		sumX += v.X
-		sumZ += v.Z
-	}
-	n := float64(len(poly.Vertices))
-	return position.Position{
-		X: sumX / n,
-		Y: poly.Y,
-		Z: sumZ / n,
-	}
 }
 
 func reconstructPath(node *PathNode, end position.Position) []position.Position {

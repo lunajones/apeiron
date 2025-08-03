@@ -107,6 +107,65 @@ const (
 	CombatActionHesitatedAttack  CombatAction = "HesitatedAttack"
 )
 
+type TerrainType string
+
+const (
+	TerrainNone   TerrainType = "None"
+	TerrainGrass  TerrainType = "Grass"
+	TerrainForest TerrainType = "Forest"
+	TerrainStone  TerrainType = "Stone"
+	TerrainMud    TerrainType = "Mud"
+	TerrainSnow   TerrainType = "Snow"
+	TerrainWater  TerrainType = "Water"
+	TerrainCave   TerrainType = "Cave"
+)
+
+type WorldObjectType string
+
+const (
+	ObjectNone      WorldObjectType = "None"
+	ObjectOakTree   WorldObjectType = "OakTree"
+	ObjectPineTree  WorldObjectType = "PineTree"
+	ObjectIronOre   WorldObjectType = "IronOre"
+	ObjectHerbBush  WorldObjectType = "HerbBush"
+	ObjectCampfire  WorldObjectType = "Campfire"
+	ObjectBarricade WorldObjectType = "Barricade"
+	ObjectTrap      WorldObjectType = "Trap"
+)
+
+type ProfessionType string
+
+const (
+	ProfessionNone       ProfessionType = "None"
+	ProfessionCollector  ProfessionType = "Collector"
+	ProfessionSaboteur   ProfessionType = "Saboteur"
+	ProfessionThief      ProfessionType = "Thief"
+	ProfessionSpy        ProfessionType = "Spy"
+	ProfessionBlacksmith ProfessionType = "Blacksmith"
+	ProfessionMerchant   ProfessionType = "Merchant"
+	ProfessionGuard      ProfessionType = "Guard"
+)
+
+type TrapType string
+
+const (
+	TrapNone      TrapType = "None"
+	TrapSnare     TrapType = "Snare"
+	TrapSpikePit  TrapType = "SpikePit"
+	TrapExplosive TrapType = "Explosive"
+	TrapNet       TrapType = "Net"
+)
+
+type CampfireType uint8
+
+const (
+	CampfireNone CampfireType = iota
+	CampfireBasic
+	CampfireRitual
+	CampfireDecoy
+	CampfirePortable
+)
+
 type MovementPlanType string
 
 const (

@@ -42,6 +42,8 @@ type Skill struct {
 
 	StaminaDamage float64
 	ScoreBase     float64
+
+	// ExecuteEffect func(c *Creature)
 }
 
 // -- Runtime Skill State --

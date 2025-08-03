@@ -47,11 +47,8 @@ func Init() {
 }
 
 func (z *Zone) LoadNavMesh() error {
-	filePath := filepath.Join("data", "zone", z.ID, "map.json")
-	mesh := navmesh.LoadNavMesh(filePath)
-	if mesh == nil {
-		return fmt.Errorf("falha ao carregar NavMesh em %s", filePath)
-	}
+	filePath := filepath.Join("data", "zone", z.ID, "map.tsv")
+	mesh := navmesh.LoadFromTSV(filePath)
 	z.NavMesh = mesh
 	log.Printf("[ZONE] NavMesh carregado para zona %s", z.ID)
 	return nil
@@ -70,15 +67,9 @@ func (z *Zone) Tick(elapsed float64) {
 			}
 		}
 
-		// Atualiza os alvos visíveis no contexto antes de usar
 		z.svcCtx.CacheFor(c.Handle, c.Position, c.DetectionRadius)
 		c.Tick(z.svcCtx, elapsed)
-		// Visualização do grid (ativar somente em debug ou condição específica)
-
 	}
-	// Visualização do grid (ativar somente em debug ou condição específica)
-	// PrintWorldGridAAA(z.Creatures, z.NavMesh)
-
 }
 
 func (z *Zone) processRespawn(c *creature.Creature) {
@@ -108,15 +99,39 @@ func (z *Zone) LoadStaticSpawns(ctx *dynamic_context.AIServiceContext) error {
 	}
 
 	for _, def := range spawnDefs {
-		// Se UseNavMeshCenter for true, calcula o centro do navmesh como base
 		basePos := def.Position
 		if def.UseNavMeshCenter {
-			bMinX, bMaxX, bMinZ, bMaxZ := z.NavMesh.BoundingBox()
-			basePos = position.Position{
-				X: (bMinX + bMaxX) / 2,
-				Y: 0, // A altura pode ser ajustada conforme necessário
-				Z: (bMinZ + bMaxZ) / 2,
+			polys := z.NavMesh.PolygonMap
+			var minX, maxX, minZ, maxZ float64
+			first := true
+			for _, p := range polys {
+				x := float64(p.GridX)
+				z := float64(p.GridZ)
+				if first {
+					minX, maxX = x, x
+					minZ, maxZ = z, z
+					first = false
+				} else {
+					if x < minX {
+						minX = x
+					}
+					if x > maxX {
+						maxX = x
+					}
+					if z < minZ {
+						minZ = z
+					}
+					if z > maxZ {
+						maxZ = z
+					}
+				}
 			}
+			basePos = position.Position{
+				X: (minX + maxX) / 2,
+				Y: 0,
+				Z: (minZ + maxZ) / 2,
+			}
+
 		}
 
 		for i := 0; i < def.Count; i++ {
@@ -125,8 +140,15 @@ func (z *Zone) LoadStaticSpawns(ctx *dynamic_context.AIServiceContext) error {
 			for attempt := 0; attempt < 10; attempt++ {
 				spawnPos = basePos.RandomWithinRadius(def.Radius)
 				if z.NavMesh.IsWalkable(spawnPos) {
-					valid = true
-					break
+					log.Printf("peru alado")
+
+					// Usa o método atualizado baseado em GridX/GridZ
+					poly := z.NavMesh.FindClosestPolygonByGrid(spawnPos)
+					if poly != nil {
+						spawnPos.Y = poly.Y
+						valid = true
+						break
+					}
 				}
 			}
 			if !valid {

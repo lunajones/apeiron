@@ -12,6 +12,7 @@ import (
 
 type grpcServer struct {
 	UnimplementedCreatureSyncServer
+	UnimplementedNavMeshServiceServer
 }
 
 func StartGRPCServer(port string) {
@@ -22,6 +23,7 @@ func StartGRPCServer(port string) {
 
 	s := grpc.NewServer()
 	RegisterCreatureSyncServer(s, &grpcServer{})
+	RegisterNavMeshServiceServer(s, &grpcServer{})
 	reflection.Register(s)
 
 	log.Printf("[gRPC] Server listening on %s", port)
@@ -30,12 +32,10 @@ func StartGRPCServer(port string) {
 	}
 }
 
-// StreamCreatureUpdates envia snapshots periódicos
 func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream CreatureSync_StreamCreatureUpdatesServer) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Criaturas que estavam ativas no último tick
 	previousAlive := make(map[string]bool)
 
 	for {
@@ -48,15 +48,13 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 			var batch CreatureSnapshotBatch
 			currentAlive := make(map[string]bool)
 
-			creatures := zone.Zones[0].Creatures // TEMP: só da primeira zona
+			creatures := zone.Zones[0].Creatures
 			for _, c := range creatures {
 				id := c.Handle.String()
-
 				if !c.IsAlive() {
 					continue
 				}
 
-				// Criatura viva → adiciona snapshot
 				pos := c.GetPosition()
 				snap := &CreatureSnapshot{
 					Id:        id,
@@ -77,14 +75,12 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 				currentAlive[id] = true
 			}
 
-			// Detecta criaturas que sumiram (estavam antes, mas não agora)
 			for id := range previousAlive {
 				if !currentAlive[id] {
 					batch.Despawns = append(batch.Despawns, &CreatureDespawn{Id: id})
 				}
 			}
 
-			// Atualiza o set de vivos pro próximo tick
 			previousAlive = currentAlive
 
 			if err := stream.Send(&batch); err != nil {
@@ -93,4 +89,52 @@ func (s *grpcServer) StreamCreatureUpdates(req *SnapshotStreamRequest, stream Cr
 			}
 		}
 	}
+}
+
+func (s *grpcServer) StreamNavMeshUpdates(_ *NavMeshStreamRequest, stream NavMeshService_StreamNavMeshUpdatesServer) error {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stream.Context().Done():
+			log.Printf("[gRPC] Cliente fechou conexão de stream de NavMesh")
+			return nil
+
+		case <-ticker.C:
+			nav := zone.Zones[0].NavMesh
+			if nav == nil {
+				continue
+			}
+
+			var batch NavMeshSnapshotBatch
+			for _, poly := range nav.Polygons {
+				snap := &NavMeshSnapshot{
+					Id:        int32(poly.ID),
+					GridX:     int32(poly.GridX),
+					GridZ:     int32(poly.GridZ),
+					OffsetX:   float32(poly.OffsetX),
+					OffsetZ:   float32(poly.OffsetZ),
+					Y:         float32(poly.Y),
+					Slope:     float32(poly.Slope),
+					AreaType:  poly.AreaType,
+					Neighbors: convertNeighbors(poly.Neighbors),
+				}
+				batch.Polygons = append(batch.Polygons, snap)
+			}
+
+			if err := stream.Send(&batch); err != nil {
+				log.Printf("[gRPC] Erro ao enviar snapshot do NavMesh: %v", err)
+				return err
+			}
+		}
+	}
+}
+
+func convertNeighbors(in []int) []int32 {
+	out := make([]int32, len(in))
+	for i, val := range in {
+		out[i] = int32(val)
+	}
+	return out
 }

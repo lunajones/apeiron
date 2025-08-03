@@ -3,12 +3,19 @@
     "TemplateID": 1001,
     "Position": { "X": 7.5, "Y": 0.0, "Z": 12.5 },
     "Radius": 3,
-    "Count": 1,
+    "Count": 0,
     "RespawnTimeSec": 45
   },
   {
     "TemplateID": 1002,
     "Position": { "X": 17.5, "Y": 0.0, "Z": 12.5 },
+    "Radius": 3,
+    "Count": 1,
+    "RespawnTimeSec": 45
+  },
+    {
+    "TemplateID": 1003,
+    "Position": { "X": 7.5, "Y": 0.0, "Z": 12.5 },
     "Radius": 3,
     "Count": 1,
     "RespawnTimeSec": 45

@@ -40,7 +40,7 @@ func IsInFieldOfView(source, target model.Targetable, fovDegrees float64) bool {
 	return angle <= (fovDegrees / 2.0)
 }
 
-func FindNearbyAllies(ctx *dynamic_context.AIServiceContext, self model.Targetable, faction string, maxDist float64) []model.Targetable {
+func FindNearbyAllies(ctx *dynamic_context.AIServiceContext, self model.Targetable, maxDist float64) []model.Targetable {
 	var result []model.Targetable
 	candidates := ctx.SpatialIndex.Query(self.GetPosition(), maxDist)
 
@@ -53,7 +53,7 @@ func FindNearbyAllies(ctx *dynamic_context.AIServiceContext, self model.Targetab
 			continue
 		}
 
-		if t.GetFaction() != faction {
+		if t.GetFaction() != self.GetFaction() {
 			continue
 		}
 
